@@ -29,20 +29,9 @@
 #define LOAD_LLAMA_FUNC(handle, func_name) \
     call_##func_name = (func_name##_t)GET_PROC(handle, #func_name);
 
-// Type definitions for all available LLAMA functions
-typedef void* llama_ctx;
-
-// Static function pointers to be loaded
-static char error_msg[256];
-DECLARE_LLAMA_FUNC(void, llama_free, void* ctx)
-DECLARE_LLAMA_FUNC(void, llama_backend_init, void)
-DECLARE_LLAMA_FUNC(void, llama_numa_init, enum ggml_numa_strategy)
-DECLARE_LLAMA_FUNC(struct llama_model_params, llama_model_default_params, void)
-DECLARE_LLAMA_FUNC(struct llama_context_params, llama_context_default_params, void)
-DECLARE_LLAMA_FUNC(struct llama_model*, llama_load_model_from_file, const char*, struct llama_model_params)
-DECLARE_LLAMA_FUNC(struct llama_context*, llama_new_context_with_model, struct llama_model*, struct llama_context_params)
 
 // Returns the last error message
+static char error_msg[256];
 const char* get_error() {
     return error_msg;
 }
@@ -67,6 +56,19 @@ const char* get_error_msg(char* error_msg, size_t size) {
     return error_msg;
 }
 
+// Type definitions for all available LLAMA functions
+typedef void* llama_ctx;
+
+// Static function pointers to be loaded
+DECLARE_LLAMA_FUNC(void, llama_backend_init, void)
+DECLARE_LLAMA_FUNC(void, llama_numa_init, enum ggml_numa_strategy)
+DECLARE_LLAMA_FUNC(struct llama_model_params, llama_model_default_params, void)
+DECLARE_LLAMA_FUNC(struct llama_context_params, llama_context_default_params, void)
+DECLARE_LLAMA_FUNC(struct llama_model*, llama_load_model_from_file, const char*, struct llama_model_params)
+DECLARE_LLAMA_FUNC(struct llama_context*, llama_new_context_with_model, struct llama_model*, struct llama_context_params)
+DECLARE_LLAMA_FUNC(void, llama_free_model, struct llama_model*)
+DECLARE_LLAMA_FUNC(void, llama_free, struct llama_context*)
+
 // Loads the library and all symbols
 int load_library(const char* lib_path) {
 #ifdef _WIN32
@@ -84,19 +86,18 @@ int load_library(const char* lib_path) {
 #endif
 
     // Load all symbols
-    LOAD_LLAMA_FUNC(handle, llama_free)
     LOAD_LLAMA_FUNC(handle, llama_backend_init)
     LOAD_LLAMA_FUNC(handle, llama_numa_init)
     LOAD_LLAMA_FUNC(handle, llama_model_default_params)
     LOAD_LLAMA_FUNC(handle, llama_context_default_params)
     LOAD_LLAMA_FUNC(handle, llama_load_model_from_file)
     LOAD_LLAMA_FUNC(handle, llama_new_context_with_model)
+    LOAD_LLAMA_FUNC(handle, llama_free_model)
+    LOAD_LLAMA_FUNC(handle, llama_free)
 
     // Initialize the library
     call_llama_backend_init();
     call_llama_numa_init(GGML_NUMA_STRATEGY_DISTRIBUTE);
-
-    printf("Library loaded successfully\n");
     return 0;
 }
 
@@ -119,3 +120,15 @@ llama_ctx load_model(const char* model_path) {
 
     return ctx;
 }
+
+// deallocates the model
+void free_model(llama_ctx ctx) {
+    printf("Freeing model\n");
+
+    struct llama_context* context = (struct llama_context*)ctx;
+    call_llama_free(context);
+
+    
+    // call_llama_free_model((llama_model*)(ctx));
+}
+

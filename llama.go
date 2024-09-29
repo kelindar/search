@@ -20,7 +20,7 @@ import (
 
 // Model represents a loaded LLM/Embedding model.
 type Model struct {
-	handle uintptr // Handle to the model
+	handle C.llama_ctx // Handle to the model
 }
 
 // New creates a new  model from the given model file.
@@ -28,10 +28,20 @@ func New(modelPath string) (*Model, error) {
 	cPath := C.CString(modelPath)
 	defer C.free(unsafe.Pointer(cPath))
 
-	if handle := C.load_model(cPath); handle != nil {
-		return &Model{uintptr(handle)}, nil
+	handle := C.load_model(cPath)
+	if handle == nil {
+		return nil, fmt.Errorf("failed to load model: %s", C.GoString(C.get_error()))
 	}
-	return nil, fmt.Errorf("failed to load model: %s", C.GoString(C.get_error()))
+
+	return &Model{
+		handle: handle,
+	}, nil
+}
+
+// Close closes the model and releases any resources associated with it.
+func (m *Model) Close() error {
+	C.free_model(m.handle)
+	return nil
 }
 
 // --------------------------------- Library Lookup ---------------------------------

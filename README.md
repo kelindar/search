@@ -29,7 +29,7 @@ cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++
 make all
 ```
 
-This should egnerate `libbert.so` that you can use.
+This should generate `libllama.so` and `libggml.so` that you can use. You can also install the library by coping it into `/usr/lib`.
 
 ### Compile on Windows
 
@@ -39,4 +39,4 @@ Make sure you have a C/C++ compiler and CMake installed. For Windows, a simple o
 cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=cl -DCMAKE_C_COMPILER=cl
 ```
 
-If you are using Visual Studio, solution files are generated. You can open the solution file with Visual Studio and build the project from there. The `bin` directory would then contain `bert.dll` and `ggml.dll`.
+If you are using Visual Studio, solution files are generated. You can open the solution file with Visual Studio and build the project from there. The `bin` directory would then contain `llama.dll` and `ggml.dll`.
