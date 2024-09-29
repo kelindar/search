@@ -57,7 +57,11 @@ const char* get_error_msg(char* error_msg, size_t size) {
 }
 
 // Type definitions for all available LLAMA functions
-typedef void* llama_ctx;
+struct context {
+    struct llama_context* ctx;
+    struct llama_model* model;
+};
+typedef struct context* llama_ctx;
 
 // Static function pointers to be loaded
 DECLARE_LLAMA_FUNC(void, llama_backend_init, void)
@@ -112,23 +116,23 @@ llama_ctx load_model(const char* model_path) {
 
     // Create a new context with the loaded model
     struct llama_context_params ctx_params = call_llama_context_default_params();
-    llama_ctx ctx = call_llama_new_context_with_model(model, ctx_params);
+    struct llama_context* ctx = call_llama_new_context_with_model(model, ctx_params);
     if (!ctx) {
         snprintf(error_msg, sizeof(error_msg), "Failed to create context: %s", get_error_msg(error_msg, sizeof(error_msg)));
         return NULL;
     }
 
-    return ctx;
+    // Return a pointer to the context structure
+    llama_ctx out = (llama_ctx)malloc(sizeof(struct context));
+    out->ctx = ctx;
+    out->model = model;
+    return out;
 }
 
 // deallocates the model
-void free_model(llama_ctx ctx) {
-    printf("Freeing model\n");
-
-    struct llama_context* context = (struct llama_context*)ctx;
-    call_llama_free(context);
-
-    
-    // call_llama_free_model((llama_model*)(ctx));
+void free_model(llama_ctx ptr) {
+    llama_ctx context = (llama_ctx)ptr;
+    call_llama_free(context->ctx);
+    call_llama_free_model(context->model);
 }
 
