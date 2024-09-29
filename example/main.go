@@ -10,4 +10,11 @@ func main() {
 	}
 
 	defer m.Close()
+
+	embeddings, err := m.EmbedText("Hello, world!")
+	if err != nil {
+		panic(err)
+	}
+
+	println(embeddings)
 }

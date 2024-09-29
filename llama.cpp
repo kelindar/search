@@ -8,6 +8,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <include/ggml.h>
 #include <include/llama.h>
 
@@ -72,6 +73,12 @@ DECLARE_LLAMA_FUNC(struct llama_model*, llama_load_model_from_file, const char*,
 DECLARE_LLAMA_FUNC(struct llama_context*, llama_new_context_with_model, struct llama_model*, struct llama_context_params)
 DECLARE_LLAMA_FUNC(void, llama_free_model, struct llama_model*)
 DECLARE_LLAMA_FUNC(void, llama_free, struct llama_context*)
+DECLARE_LLAMA_FUNC(int32_t, llama_tokenize, const struct llama_model*, const char*, int32_t, llama_token*, int32_t, bool, bool)
+DECLARE_LLAMA_FUNC(int32_t, llama_decode, struct llama_context*, struct llama_batch)
+DECLARE_LLAMA_FUNC(float*, llama_get_embeddings, struct llama_context*)
+DECLARE_LLAMA_FUNC(struct llama_batch, llama_batch_init, int32_t, int32_t, int32_t)
+DECLARE_LLAMA_FUNC(void, llama_batch_free, struct llama_batch)
+DECLARE_LLAMA_FUNC(int32_t, llama_n_embd, struct llama_model*)
 
 // Loads the library and all symbols
 int load_library(const char* lib_path) {
@@ -98,6 +105,12 @@ int load_library(const char* lib_path) {
     LOAD_LLAMA_FUNC(handle, llama_new_context_with_model)
     LOAD_LLAMA_FUNC(handle, llama_free_model)
     LOAD_LLAMA_FUNC(handle, llama_free)
+    LOAD_LLAMA_FUNC(handle, llama_tokenize)
+    LOAD_LLAMA_FUNC(handle, llama_decode)
+    LOAD_LLAMA_FUNC(handle, llama_get_embeddings)
+    LOAD_LLAMA_FUNC(handle, llama_batch_init)
+    LOAD_LLAMA_FUNC(handle, llama_batch_free)
+    LOAD_LLAMA_FUNC(handle, llama_n_embd)
 
     // Initialize the library
     call_llama_backend_init();
@@ -140,7 +153,84 @@ void free_model(context_t context) {
     free(context);
 }
 
-// generates embeddings vector for the given text
-void embed_text(context_t context, const char* text, float* out_embeddings) {
-    // TODO: Implement this
+// Generates embeddings vector for the given text.  Returns the number of embeddings on
+// success, or -1 on failure
+int embed_text(context_t context, const char* text, float* out_embeddings) {
+    if (!context || !text || !out_embeddings) {
+        snprintf(error_msg, sizeof(error_msg), "Invalid arguments to embed_text");
+        return -1;
+    }
+
+    struct llama_context* ctx = context->ctx;
+    struct llama_model* model = context->model;
+
+    // Step 1: Tokenize the input text
+    int32_t text_len = strlen(text);
+    int32_t n_max = 512; // Maximum number of tokens to tokenize
+
+    // Allocate memory for tokens
+    llama_token* tokens = (llama_token*)malloc(n_max * sizeof(llama_token));
+    if (!tokens) {
+        snprintf(error_msg, sizeof(error_msg), "Failed to allocate memory for tokens");
+        return -1;
+    }
+
+    // Tokenize the text into the tokens array
+    int32_t n_tokens = call_llama_tokenize(model, text, text_len, tokens, n_max, true, true);
+    if (n_tokens < 0) {
+        snprintf(error_msg, sizeof(error_msg), "Tokenization failed. Tokens needed: %d", -n_tokens);
+        free(tokens);
+        return -1;
+    }
+
+    if (n_tokens == 0) {
+        snprintf(error_msg, sizeof(error_msg), "No tokens generated from input text");
+        free(tokens);
+        return -1;
+    }
+
+    // Step 2: Prepare the batch for decoding
+    struct llama_batch batch = call_llama_batch_init(n_tokens, 0, 1); // embd=0, n_seq_max=1
+    if (batch.n_tokens != n_tokens) {
+        snprintf(error_msg, sizeof(error_msg), "Failed to initialize batch");
+        free(tokens);
+        call_llama_batch_free(batch);
+        return -1;
+    }
+
+    // Assign tokens to the batch
+    batch.token = tokens;
+    batch.pos = NULL; // Let the model handle positions
+    batch.seq_id = NULL; // Single sequence
+    batch.logits = NULL; // We'll extract embeddings
+
+    // Step 3: Decode the tokens
+    int32_t decode_result = call_llama_decode(ctx, batch);
+    if (decode_result < 0) {
+        snprintf(error_msg, sizeof(error_msg), "Decoding failed with code %d", decode_result);
+        free(tokens);
+        call_llama_batch_free(batch);
+        return -1;
+    }
+
+    // Step 4: Retrieve the embeddings
+    float* embeddings = call_llama_get_embeddings(ctx);
+    if (!embeddings) {
+        snprintf(error_msg, sizeof(error_msg), "Failed to retrieve embeddings");
+        free(tokens);
+        call_llama_batch_free(batch);
+        return -1;
+    }
+
+    // Step 5: Determine the embedding size
+    // This depends on the model; for example, 4096 for LLaMA-13B
+    size_t embedding_size = call_llama_n_embd(model);
+
+    // Step 6: Copy the embeddings to the output array
+    memcpy(out_embeddings, embeddings, embedding_size * sizeof(float));
+
+    // Clean up
+    free(tokens);
+    call_llama_batch_free(batch);
+    return (int)embedding_size; // Return the size of the embeddings
 }

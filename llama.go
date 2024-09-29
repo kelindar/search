@@ -38,6 +38,18 @@ func New(modelPath string, contextSize int) (*Model, error) {
 	}, nil
 }
 
+func (m *Model) EmbedText(text string) ([]float32, error) {
+	cText := C.CString(text)
+	defer C.free(unsafe.Pointer(cText))
+
+	var out C.float
+	if ret := C.embed_text(m.handle, cText, &out); ret != 0 {
+		return nil, fmt.Errorf("failed to embed text: %s", C.GoString(C.get_error()))
+	}
+
+	return []float32{float32(out)}, nil
+}
+
 // Close closes the model and releases any resources associated with it.
 func (m *Model) Close() error {
 	C.free_model(m.handle)
