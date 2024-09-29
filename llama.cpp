@@ -56,7 +56,7 @@ const char* get_error_msg(char* error_msg, size_t size) {
     return error_msg;
 }
 
-// Type definitions for all available LLAMA functions
+// Context structure to hold the loaded model and context
 struct context {
     struct llama_context* ctx;
     struct llama_model* model;
@@ -106,7 +106,7 @@ int load_library(const char* lib_path) {
 }
 
 // loads the model from the given path
-context_t load_model(const char* model_path) {
+context_t load_model(const char* model_path, const uint32_t n_ctx) {
     struct llama_model_params params = call_llama_model_default_params();
     struct llama_model* model = call_llama_load_model_from_file(model_path, params);
     if (!model) {
@@ -116,6 +116,10 @@ context_t load_model(const char* model_path) {
 
     // Create a new context with the loaded model
     struct llama_context_params ctx_params = call_llama_context_default_params();
+    ctx_params.n_ctx = n_ctx;
+    ctx_params.embeddings = true;
+    // ctx_params.flash_attn = true; 
+
     struct llama_context* ctx = call_llama_new_context_with_model(model, ctx_params);
     if (!ctx) {
         snprintf(error_msg, sizeof(error_msg), "Failed to create context: %s", get_error_msg(error_msg, sizeof(error_msg)));
@@ -130,9 +134,13 @@ context_t load_model(const char* model_path) {
 }
 
 // deallocates the model
-void free_model(context_t ptr) {
-    context_t context = (context_t)ptr;
+void free_model(context_t context) {
     call_llama_free(context->ctx);
     call_llama_free_model(context->model);
+    free(context);
 }
 
+// generates embeddings vector for the given text
+void embed_text(context_t context, const char* text, float* out_embeddings) {
+    // TODO: Implement this
+}

@@ -24,11 +24,11 @@ type Model struct {
 }
 
 // New creates a new  model from the given model file.
-func New(modelPath string) (*Model, error) {
+func New(modelPath string, contextSize int) (*Model, error) {
 	cPath := C.CString(modelPath)
 	defer C.free(unsafe.Pointer(cPath))
 
-	handle := C.load_model(cPath)
+	handle := C.load_model(cPath, C.uint32_t(contextSize))
 	if handle == nil {
 		return nil, fmt.Errorf("failed to load model: %s", C.GoString(C.get_error()))
 	}
@@ -41,6 +41,7 @@ func New(modelPath string) (*Model, error) {
 // Close closes the model and releases any resources associated with it.
 func (m *Model) Close() error {
 	C.free_model(m.handle)
+	m.handle = nil // freed
 	return nil
 }
 
