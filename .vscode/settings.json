@@ -1,0 +1,12 @@
+{
+  "go.toolsEnvVars": {
+    "CGO_ENABLED": "1",
+    "GOOS": "windows",
+  },
+  "go.testEnvVars": {
+    "CGO_ENABLED": "1",
+    "GOOS": "windows",
+  },
+  "go.buildTags": "windows",
+}
+
