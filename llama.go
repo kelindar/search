@@ -42,9 +42,14 @@ func (m *Model) EmbedText(text string) ([]float32, error) {
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
 
-	// TODO: figure out size of embeddings
-	embeddings := make([]float32, m.handle.n_embd)
+	switch {
+	case !bool(m.handle.has_decoder):
+		return nil, fmt.Errorf("model does not support decoding")
+	case bool(m.handle.has_encoder):
+		return nil, fmt.Errorf("encoder/decoder models are not supported")
+	}
 
+	embeddings := make([]float32, m.handle.n_embd)
 	if ret := C.embed_text(m.handle, cText, (*C.float)(unsafe.Pointer(&embeddings[0]))); ret != 0 {
 		return nil, fmt.Errorf("failed to embed text: %s", C.GoString(C.get_error()))
 	}

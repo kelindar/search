@@ -7,13 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+/*
+BenchmarkLLM/encode-24         	     486	   2430962 ns/op	    1536 B/op	       1 allocs/op
+*/
 func BenchmarkLLM(b *testing.B) {
 	ctx := loadModel()
 	defer ctx.Close()
 
-	// text := "This is a test sentence we are going to generate embeddings for."
-	text := "Hello, world!"
-
+	text := "This is a test sentence we are going to generate embeddings for."
 	b.Run("encode", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			_, err := ctx.EmbedText(text)

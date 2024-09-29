@@ -62,6 +62,8 @@ struct context {
     struct llama_context* ctx;
     struct llama_model* model;
     int32_t n_embd;
+    bool has_encoder;
+    bool has_decoder;
 };
 typedef struct context* context_t;
 
@@ -136,7 +138,7 @@ context_t load_model(const char* model_path, const uint32_t n_ctx) {
     struct llama_context_params ctx_params = call_llama_context_default_params();
     ctx_params.n_ctx = n_ctx;
     ctx_params.embeddings = true;
-    // ctx_params.flash_attn = true; 
+    //ctx_params.flash_attn = true; 
 
     struct llama_context* ctx = call_llama_new_context_with_model(model, ctx_params);
     if (!ctx) {
@@ -149,6 +151,8 @@ context_t load_model(const char* model_path, const uint32_t n_ctx) {
     out->ctx = ctx;
     out->model = model;
     out->n_embd = call_llama_n_embd(model);
+    out->has_encoder = call_llama_model_has_encoder(model);
+    out->has_decoder = call_llama_model_has_decoder(model);
     return out;
 }
 
@@ -162,7 +166,7 @@ void free_model(context_t context) {
 // Generates embeddings vector for the given text.
 int embed_text(context_t context, const char* text, float* out_embeddings) {
     if (!context || !text || !out_embeddings) {
-        snprintf(error_msg, sizeof(error_msg), "Invalid arguments to embed_text");
+        snprintf(error_msg, sizeof(error_msg), "invalid arguments for encode text");
         return -1;
     }
 
@@ -198,7 +202,7 @@ int embed_text(context_t context, const char* text, float* out_embeddings) {
     // Decode the tokens
     int32_t decode_result = call_llama_decode(ctx, batch);
     if (decode_result < 0) {
-        snprintf(error_msg, sizeof(error_msg), "Decoding failed with code %d", decode_result);
+        snprintf(error_msg, sizeof(error_msg), "unable to decode, code=%d", decode_result);
         call_llama_batch_free(batch);
         return -1;
     }
@@ -206,7 +210,7 @@ int embed_text(context_t context, const char* text, float* out_embeddings) {
     // Retrieve the embeddings
     float* embeddings = call_llama_get_embeddings_seq(ctx, sequence);
     if (!embeddings) {
-        snprintf(error_msg, sizeof(error_msg), "Failed to retrieve embeddings");
+        snprintf(error_msg, sizeof(error_msg), "unable to retrieve embeddings");
         call_llama_batch_free(batch);
         return -1;
     }
