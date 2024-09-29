@@ -61,7 +61,7 @@ struct context {
     struct llama_context* ctx;
     struct llama_model* model;
 };
-typedef struct context* llama_ctx;
+typedef struct context* context_t;
 
 // Static function pointers to be loaded
 DECLARE_LLAMA_FUNC(void, llama_backend_init, void)
@@ -106,7 +106,7 @@ int load_library(const char* lib_path) {
 }
 
 // loads the model from the given path
-llama_ctx load_model(const char* model_path) {
+context_t load_model(const char* model_path) {
     struct llama_model_params params = call_llama_model_default_params();
     struct llama_model* model = call_llama_load_model_from_file(model_path, params);
     if (!model) {
@@ -123,15 +123,15 @@ llama_ctx load_model(const char* model_path) {
     }
 
     // Return a pointer to the context structure
-    llama_ctx out = (llama_ctx)malloc(sizeof(struct context));
+    context_t out = (context_t)malloc(sizeof(struct context));
     out->ctx = ctx;
     out->model = model;
     return out;
 }
 
 // deallocates the model
-void free_model(llama_ctx ptr) {
-    llama_ctx context = (llama_ctx)ptr;
+void free_model(context_t ptr) {
+    context_t context = (context_t)ptr;
     call_llama_free(context->ctx);
     call_llama_free_model(context->model);
 }

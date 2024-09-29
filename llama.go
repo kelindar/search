@@ -20,7 +20,7 @@ import (
 
 // Model represents a loaded LLM/Embedding model.
 type Model struct {
-	handle C.llama_ctx // Handle to the model
+	handle C.context_t // Handle to the model
 }
 
 // New creates a new  model from the given model file.
