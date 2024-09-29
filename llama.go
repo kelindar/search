@@ -42,12 +42,14 @@ func (m *Model) EmbedText(text string) ([]float32, error) {
 	cText := C.CString(text)
 	defer C.free(unsafe.Pointer(cText))
 
-	var out C.float
-	if ret := C.embed_text(m.handle, cText, &out); ret != 0 {
+	// TODO: figure out size of embeddings
+	embeddings := make([]float32, m.handle.n_embd)
+
+	if ret := C.embed_text(m.handle, cText, (*C.float)(unsafe.Pointer(&embeddings[0]))); ret != 0 {
 		return nil, fmt.Errorf("failed to embed text: %s", C.GoString(C.get_error()))
 	}
 
-	return []float32{float32(out)}, nil
+	return embeddings, nil
 }
 
 // Close closes the model and releases any resources associated with it.

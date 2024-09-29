@@ -1,6 +1,10 @@
 package main
 
-import "github.com/kelindar/llm"
+import (
+	"fmt"
+
+	"github.com/kelindar/llm"
+)
 
 func main() {
 	//m, err := llm.New("../dist/Llama-3.2-1B-Instruct-Q6_K_L.gguf", 0)
@@ -16,5 +20,5 @@ func main() {
 		panic(err)
 	}
 
-	println(embeddings)
+	fmt.Printf("Embeddings: %v\n", embeddings)
 }
