@@ -169,22 +169,15 @@ int embed_text(context_t context, const char* text, float* out_embeddings) {
     struct llama_context* ctx = context->ctx;
     struct llama_model* model = context->model;
 
-    // Step 1: Determine the number of tokens required
+    // Determine the number of tokens required
     int32_t text_len = strlen(text);
     int32_t n_tokens = call_llama_tokenize(model, text, text_len, NULL, 0, true, true);
     if (n_tokens < 0) {
         n_tokens = -n_tokens; // Tokens needed
     }
 
-    // Step 2: Initialize the batch with the exact number of tokens
+    // Allocate a batch and tokenize the text into the batch.token array
     struct llama_batch batch = call_llama_batch_init(n_tokens, 0, 1); // embd=0, n_seq_max=1
-    /*if (n_tokens == 0 || batch.n_tokens != n_tokens) {
-        snprintf(error_msg, sizeof(error_msg), "unable to init batch for %d tokens, got %d", n_tokens, batch.n_tokens);
-        call_llama_batch_free(batch);
-        return -1;
-    }*/
-
-    // Step 3: Tokenize the text into the batch.token array
     int32_t actual_n_tokens = call_llama_tokenize(model, text, text_len, batch.token, n_tokens, true, true);
     if (actual_n_tokens < 0 || actual_n_tokens != n_tokens) {
         snprintf(error_msg, sizeof(error_msg), "unable to tokenize %d tokens, got %d",  n_tokens, actual_n_tokens);
@@ -192,32 +185,17 @@ int embed_text(context_t context, const char* text, float* out_embeddings) {
         return -1;
     }
 
-    /*
-    
-void llama_batch_add(struct llama_batch& batch, llama_token id, llama_pos pos, const std::vector<llama_seq_id> & seq_ids, bool   logits) {
-    batch.token[batch.n_tokens] = id;
-    batch.pos[batch.n_tokens] = pos;
-    batch.n_seq_id[batch.n_tokens] = seq_ids.size();
-    for (size_t i = 0; i < seq_ids.size(); ++i) {
-        batch.seq_id[batch.n_tokens][i] = seq_ids[i];
-    }
-    batch.logits  [batch.n_tokens] = logits;
-    batch.n_tokens++;
-}
-
-    */
-
-    // Step 4: Assign pos and seq_id
-    batch.all_seq_id = 1; // Single sequence
+    // Assign the sequence ID to the tokens
+    llama_seq_id sequence = 1; // Single sequence
     for (int32_t i = 0; i < n_tokens; i++) {
         batch.pos[i] = i; 
-        batch.n_seq_id[i] = 0; // Single sequence
-        batch.seq_id[i] = &batch.all_seq_id; // Point to the single sequence ID
+        batch.n_seq_id[i] = sequence; // Single sequence
+        batch.seq_id[i][0] = sequence; // Point to the single sequence ID
         batch.logits[i] = true; // Enable embeddings extraction
         batch.n_tokens++;
     }
 
-    // Step 5: Decode the tokens
+    // Decode the tokens
     int32_t decode_result = call_llama_decode(ctx, batch);
     if (decode_result < 0) {
         snprintf(error_msg, sizeof(error_msg), "Decoding failed with code %d", decode_result);
@@ -225,46 +203,16 @@ void llama_batch_add(struct llama_batch& batch, llama_token id, llama_pos pos, c
         return -1;
     }
 
-
-    // Step 6: Retrieve the embeddings
-    float* embeddings = call_llama_get_embeddings_seq(ctx, 0);
+    // Retrieve the embeddings
+    float* embeddings = call_llama_get_embeddings_seq(ctx, sequence);
     if (!embeddings) {
         snprintf(error_msg, sizeof(error_msg), "Failed to retrieve embeddings");
         call_llama_batch_free(batch);
         return -1;
     }
 
-    printf("n_embd: %d\n", context->n_embd);
-
-    // Step 8: Copy the embeddings to the output array
+    // Copy the embeddings to the output array & free the batch
     memcpy(out_embeddings, embeddings, context->n_embd * sizeof(float));
-
-    // Clean up
-    // TODO: FIX
-
-    // DEBUG: print batch pointers
-    printf("batch.token: %p\n", batch.token);
-    printf("batch.embd: %p\n", batch.embd);
-    printf("batch.pos: %p\n", batch.pos);
-    printf("batch.n_seq_id: %p\n", batch.n_seq_id);
-    printf("batch.seq_id: %p\n", batch.seq_id);
-    printf("batch.logits: %p\n", batch.logits);
-    
-
-
-    /*if (batch.token)    free(batch.token);
-    if (batch.embd)     free(batch.embd);
-    if (batch.pos)      free(batch.pos);
-    if (batch.n_seq_id) free(batch.n_seq_id);
-    if (batch.seq_id) {
-        for (int i = 0; batch.seq_id[i] != nullptr; ++i) {
-            free(batch.seq_id[i]);
-        }
-        free(batch.seq_id);
-    }
-    if (batch.logits)   free(batch.logits);*/
-
-
     call_llama_batch_free(batch);
     return 0; 
 }
