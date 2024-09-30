@@ -78,12 +78,16 @@ DECLARE_LLAMA_FUNC(void, llama_free_model, struct llama_model*)
 DECLARE_LLAMA_FUNC(void, llama_free, struct llama_context*)
 DECLARE_LLAMA_FUNC(int32_t, llama_tokenize, const struct llama_model*, const char*, int32_t, llama_token*, int32_t, bool, bool)
 DECLARE_LLAMA_FUNC(int32_t, llama_decode, struct llama_context*, struct llama_batch)
+DECLARE_LLAMA_FUNC(int32_t, llama_encode, struct llama_context*, struct llama_batch)
+DECLARE_LLAMA_FUNC(void, llama_kv_cache_clear, struct llama_context*)
+DECLARE_LLAMA_FUNC(float*, llama_get_embeddings_ith, struct llama_context*, int)
 DECLARE_LLAMA_FUNC(float*, llama_get_embeddings_seq, struct llama_context*, llama_seq_id)
 DECLARE_LLAMA_FUNC(struct llama_batch, llama_batch_init, int32_t, int32_t, int32_t)
 DECLARE_LLAMA_FUNC(void, llama_batch_free, struct llama_batch)
 DECLARE_LLAMA_FUNC(int32_t, llama_n_embd, struct llama_model*)
 DECLARE_LLAMA_FUNC(bool, llama_model_has_encoder, const struct llama_model*)
 DECLARE_LLAMA_FUNC(bool, llama_model_has_decoder, const struct llama_model*)
+DECLARE_LLAMA_FUNC(enum llama_pooling_type, llama_pooling_type, const struct llama_context*)
 
 // Loads the library and all symbols
 int load_library(const char* lib_path) {
@@ -112,12 +116,16 @@ int load_library(const char* lib_path) {
     LOAD_LLAMA_FUNC(handle, llama_free)
     LOAD_LLAMA_FUNC(handle, llama_tokenize)
     LOAD_LLAMA_FUNC(handle, llama_decode)
+    LOAD_LLAMA_FUNC(handle, llama_encode)
+    LOAD_LLAMA_FUNC(handle, llama_kv_cache_clear)
+    LOAD_LLAMA_FUNC(handle, llama_get_embeddings_ith)
     LOAD_LLAMA_FUNC(handle, llama_get_embeddings_seq)
     LOAD_LLAMA_FUNC(handle, llama_batch_init)
     LOAD_LLAMA_FUNC(handle, llama_batch_free)
     LOAD_LLAMA_FUNC(handle, llama_n_embd)
     LOAD_LLAMA_FUNC(handle, llama_model_has_encoder)
     LOAD_LLAMA_FUNC(handle, llama_model_has_decoder)
+    LOAD_LLAMA_FUNC(handle, llama_pooling_type)
 
     // Initialize the library
     call_llama_backend_init();
@@ -125,9 +133,28 @@ int load_library(const char* lib_path) {
     return 0;
 }
 
+void llama_batch_clear(struct llama_batch* batch) {
+    batch->n_tokens = 0;
+}
+
+void llama_batch_add(struct llama_batch* batch, llama_token id, llama_pos pos, const llama_seq_id* seq_ids, int32_t n_seq_ids, bool logits) {
+    batch->token[batch->n_tokens] = id; // The token ID (an integer representing the token in the vocabulary)
+    batch->pos[batch->n_tokens] = pos; // The position of the token in the sequence
+    batch->logits[batch->n_tokens] = logits; // If true, the logits (and/or the embeddings) for the token will be output
+    batch->n_seq_id[batch->n_tokens] = n_seq_ids; // An array of sequence IDs that the token belongs to
+    for (int32_t i = 0; i < n_seq_ids; ++i) {
+        batch->seq_id[batch->n_tokens][i] = seq_ids[i];
+    }
+    batch->n_tokens++;
+}
+
 // loads the model from the given path
 context_t load_model(const char* model_path, const uint32_t n_ctx) {
     struct llama_model_params params = call_llama_model_default_params();
+
+    //params.n_gpu_layers = 10;
+    params.n_gpu_layers = 999;
+
     struct llama_model* model = call_llama_load_model_from_file(model_path, params);
     if (!model) {
         snprintf(error_msg, sizeof(error_msg), "Failed to load model: %s", get_error_msg(error_msg, sizeof(error_msg)));
@@ -139,6 +166,7 @@ context_t load_model(const char* model_path, const uint32_t n_ctx) {
     ctx_params.n_ctx = n_ctx;
     ctx_params.embeddings = true;
     //ctx_params.flash_attn = true; 
+
 
     struct llama_context* ctx = call_llama_new_context_with_model(model, ctx_params);
     if (!ctx) {
@@ -189,31 +217,45 @@ int embed_text(context_t context, const char* text, float* out_embeddings) {
         return -1;
     }
 
-    // Assign the sequence ID to the tokens
+    // Clear KV cache
+    call_llama_kv_cache_clear(ctx);
+
+    // Add tokens to batch
     llama_seq_id sequence = 1; // Single sequence
-    for (int32_t i = 0; i < n_tokens; i++) {
-        batch.pos[i] = i; 
-        batch.n_seq_id[i] = sequence; // Single sequence
-        batch.seq_id[i][0] = sequence; // Point to the single sequence ID
-        batch.logits[i] = true; // Enable embeddings extraction
-        batch.n_tokens++;
+    for (int i = 0; i < n_tokens; i++) {
+        llama_seq_id seq_id_array[1] = { sequence };
+        llama_batch_add(&batch, batch.token[i], i, seq_id_array, 1, true);
     }
 
-    // Decode the tokens
-    int32_t decode_result = call_llama_decode(ctx, batch);
+    // Decode or Encode
+    int decode_result = 0;
+    if (context->has_encoder && !context->has_decoder) {
+        decode_result = call_llama_encode(ctx, batch);
+    } else if (!context->has_encoder && context->has_decoder) {
+        decode_result = call_llama_decode(ctx, batch);
+    }
     if (decode_result < 0) {
-        snprintf(error_msg, sizeof(error_msg), "unable to decode, code=%d", decode_result);
+        snprintf(error_msg, sizeof(error_msg), "decode/encode failed, code=%d", decode_result);
         call_llama_batch_free(batch);
         return -1;
     }
 
-    // Retrieve the embeddings
-    float* embeddings = call_llama_get_embeddings_seq(ctx, sequence);
+    // Determine the pooling type
+    enum llama_pooling_type pooling_type = call_llama_pooling_type(ctx);
+    float* embeddings = NULL;
+    if (pooling_type == LLAMA_POOLING_TYPE_NONE) {
+        // Get embeddings per token (e.g., for the last token)
+        embeddings = call_llama_get_embeddings_ith(ctx, n_tokens - 1);
+    } else {
+        // Get embeddings per sequence
+        embeddings = call_llama_get_embeddings_seq(ctx, sequence);
+    }
     if (!embeddings) {
-        snprintf(error_msg, sizeof(error_msg), "unable to retrieve embeddings");
+        snprintf(error_msg, sizeof(error_msg), "failed to get embeddings");
         call_llama_batch_free(batch);
         return -1;
     }
+
 
     // Copy the embeddings to the output array & free the batch
     memcpy(out_embeddings, embeddings, context->n_embd * sizeof(float));

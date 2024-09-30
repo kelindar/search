@@ -25,6 +25,7 @@ func BenchmarkLLM(b *testing.B) {
 
 func loadModel() *Model {
 	mod, _ := filepath.Abs("dist/MiniLM-L6-v2.Q4_K_M.gguf")
+	//mod, _ := filepath.Abs("dist/Llama-3.2-1B-Instruct-Q6_K_L.gguf")
 	ctx, err := New(mod, 512)
 	if err != nil {
 		panic(err)
