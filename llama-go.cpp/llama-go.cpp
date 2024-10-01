@@ -12,11 +12,14 @@ static void print_usage(int, char ** argv) {
 }
 
 extern "C" {
+
+    // load the library and initialize the backend
     LLAMA_API void load_library(void){
         llama_backend_init();
         llama_numa_init(GGML_NUMA_STRATEGY_DISTRIBUTE);
     }
 
+    // load the model from the file
     LLAMA_API struct llama_model* load_model(const char * path_model, const uint32_t n_gpu_layers){
         struct llama_model_params params = llama_model_default_params();
         params.n_gpu_layers = n_gpu_layers;
@@ -24,10 +27,12 @@ extern "C" {
         return llama_load_model_from_file(path_model, params);
     }
 
+    // free the model and all the resources
     LLAMA_API void free_model(struct llama_model * model){
         llama_free_model(model);
     }
 
+    // create a context with the model and the context size
     LLAMA_API struct llama_context* load_context(struct llama_model * model, const uint32_t ctx_size){
         struct llama_context_params params = llama_context_default_params();
         params.n_ctx = ctx_size;
@@ -37,9 +42,19 @@ extern "C" {
         return llama_new_context_with_model(model, params);
     }
 
+    // free the context and all the resources
     LLAMA_API void free_context(struct llama_context * ctx){
         llama_free(ctx);
     }
+
+    // get the embeddings size, if the model doesn't support embeddings, return -1
+    LLAMA_API int32_t get_n_embd(const struct llama_model * ctx){
+        if (llama_model_has_encoder(ctx) && llama_model_has_decoder(ctx)) {
+            return -1; // embeddings are not supported
+        }
+        return llama_n_embd(ctx);
+    }
+
 }
 
 

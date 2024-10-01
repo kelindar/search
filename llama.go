@@ -17,20 +17,21 @@ func New(modelPath string, gpuLayers int) (*Model, error) {
 
 	return &Model{
 		handle: handle,
-		//n_embd: llama_n_embd(handle),
+		n_embd: get_n_embd(handle),
 	}, nil
 }
 
+// EmbedText embeds the given text using the model.
 func (m *Model) EmbedText(text string) ([]float32, error) {
-	/*cText := C.CString(text)
-	defer C.free(unsafe.Pointer(cText))
-
 	switch {
-	case !bool(m.handle.has_decoder):
-		return nil, fmt.Errorf("model does not support decoding")
-	case bool(m.handle.has_encoder):
-		return nil, fmt.Errorf("encoder/decoder models are not supported")
-	}*/
+	case m.handle == 0:
+		return nil, fmt.Errorf("model is not loaded")
+	case m.n_embd <= 0:
+		return nil, fmt.Errorf("model does not support embedding")
+	}
+
+	ctx := load_context(m.handle, 0)
+	defer free_context(ctx)
 
 	embeddings := make([]float32, m.n_embd)
 	/*if ret := C.embed_text(m.handle, cText, (*C.float)(unsafe.Pointer(&embeddings[0]))); ret != 0 {

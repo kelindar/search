@@ -18,6 +18,7 @@ var load_model func(path_model string, n_gpu_layers uint32) uintptr
 var load_context func(model uintptr, ctx_size uint32) uintptr
 var free_model func(model uintptr)
 var free_context func(ctx uintptr)
+var get_n_embd func(model uintptr) int32
 
 func init() {
 	libpath, err := findLlama()
@@ -34,6 +35,7 @@ func init() {
 	purego.RegisterLibFunc(&load_context, libptr, "load_context")
 	purego.RegisterLibFunc(&free_model, libptr, "free_model")
 	purego.RegisterLibFunc(&free_context, libptr, "free_context")
+	purego.RegisterLibFunc(&get_n_embd, libptr, "get_n_embd")
 
 	// Initialize the library
 	load_library()
