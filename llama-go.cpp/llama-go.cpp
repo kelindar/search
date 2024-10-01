@@ -2,7 +2,7 @@
 #include "common.h"
 #include "log.h"
 #include "llama.h"
-
+#include "ggml.h"
 #include <vector>
 
 static void print_usage(int, char ** argv) {
@@ -10,6 +10,15 @@ static void print_usage(int, char ** argv) {
     LOG("\n    %s -m model.gguf -p \"Hello my name is\" -n 32\n", argv[0]);
     LOG("\n");
 }
+
+extern "C" {
+    LLAMA_API void llama_init(){
+        llama_backend_init();
+        llama_numa_init(GGML_NUMA_STRATEGY_DISTRIBUTE);
+    }
+}
+
+
 
 int main(int argc, char ** argv) {
     gpt_params params;

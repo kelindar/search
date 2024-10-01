@@ -38,8 +38,8 @@ Make sure you have a C/C++ compiler and CMake installed. For Windows, a simple o
 ```bash
 mkdir build
 cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
-cmake --build .
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
 ```
 
 If you are using Visual Studio, solution files are generated. You can open the solution file with Visual Studio and build the project from there. The `bin` directory would then contain `llama.dll` and `ggml.dll`.

@@ -1,5 +1,3 @@
-# project-root/CMakeLists.txt
-
 cmake_minimum_required(VERSION 3.14)
 project(llama_go_lib VERSION 1.0 LANGUAGES CXX)
 
@@ -7,11 +5,10 @@ project(llama_go_lib VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Add the external llama.cpp submodule
-# This assumes that llama.cpp is located in the project-root/llama.cpp directory
-add_subdirectory(llama.cpp)
+# Set BUILD_SHARED_LIBS to OFF to build static libraries
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static libraries" FORCE)
 
-# Add your own llama-go.cpp subdirectory
+# Add the subdirectories
+add_subdirectory(llama.cpp)
 add_subdirectory(llama-go.cpp)
 
-# Optionally, you can define installation rules, packaging, etc., here
