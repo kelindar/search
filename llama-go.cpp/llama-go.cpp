@@ -12,9 +12,33 @@ static void print_usage(int, char ** argv) {
 }
 
 extern "C" {
-    LLAMA_API void llama_init(){
+    LLAMA_API void init(){
         llama_backend_init();
         llama_numa_init(GGML_NUMA_STRATEGY_DISTRIBUTE);
+    }
+
+    LLAMA_API struct llama_model* load_model_from_file(const char * path_model, const uint32_t n_gpu_layers){
+        struct llama_model_params params = llama_model_default_params();
+        params.n_gpu_layers = n_gpu_layers;
+
+        return llama_load_model_from_file(path_model, params);
+    }
+
+    LLAMA_API void free_model(struct llama_model * model){
+        llama_free_model(model);
+    }
+
+    LLAMA_API struct llama_context* new_context_with_model(struct llama_model * model, const uint32_t n_ctx){
+        struct llama_context_params params = llama_context_default_params();
+        params.n_ctx = n_ctx;
+        params.embeddings = true;
+        // other options ...
+
+        return llama_new_context_with_model(model, params);
+    }
+
+    LLAMA_API void free_context(struct llama_context * ctx){
+        llama_free(ctx);
     }
 }
 
