@@ -73,7 +73,7 @@ func (ctx *Context) EmbedText(text string) ([]float32, error) {
 	case 0:
 		return embeddings, nil
 	case 1:
-		return nil, fmt.Errorf("number of tokens in input line exceeds batch size")
+		return nil, fmt.Errorf("last token in the prompt is not SEP")
 	default:
 		return nil, fmt.Errorf("failed to embed text (code=%d)", ret)
 	}

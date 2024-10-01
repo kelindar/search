@@ -58,22 +58,16 @@ extern "C" {
 
     // embed the text and return the embeddings
     LLAMA_API int embed_text(context_t ctx, const char* text, float* out_embeddings) {
-        int32_t text_len = strlen(text);
-        printf("length: %d\n", text_len);
-        printf("text: %s\n", text);
 
-        out_embeddings[0] = 1.0;
-        out_embeddings[1] = 2.0;
+        // tokenize the text
+        auto inp = ::llama_tokenize(llama_get_model(ctx), text, true, true);
+        if (inp.empty() || inp.back() != llama_token_sep(llama_get_model(ctx))) {
+            return 1; // last token in the prompt is not SEP
+        }
 
-        try {
-            auto inp = ::llama_tokenize(llama_get_model(ctx), text, true, true);
-        }
-        catch (const std::exception& e) {
-            printf("Exception caught: %s\n", e.what());
-        }
-        catch (...) {
-            printf("An unknown exception occurred.\n");
-        }
+        // initialize batch
+        const int n_batch = llama_n_batch(ctx);
+        struct llama_batch batch = llama_batch_init(n_batch, 0, 1);
 
         /*try {
             int32_t n_tokens = llama_tokenize(llama_get_model(ctx), text, text_len, NULL, 0, true, true);
