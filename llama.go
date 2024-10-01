@@ -10,34 +10,14 @@ type Model struct {
 
 // New creates a new  model from the given model file.
 func New(modelPath string, gpuLayers int) (*Model, error) {
-	/*cPath := C.CString(modelPath)
-	defer C.free(unsafe.Pointer(cPath))
-
-	handle := C.load_model(cPath, C.uint32_t(contextSize))
-	if handle == nil {
-		return nil, fmt.Errorf("failed to load model: %s", C.GoString(C.get_error()))
-	}*/
-
-	llama_backend_init()
-	llama_numa_init(1) // distribute
-
-	params := llama_model_default_params()
-	//println(params)
-	/*handle := llama_load_model_from_file(modelPath, &llama_model_params{
-		n_gpu_layers: int32(gpuLayers),
-		split_mode:   1, // LLAMA_SPLIT_MODE_ROW
-		use_mmap:     true,
-	})*/
-
-	//params.n_gpu_layers = int32(gpuLayers)
-	handle := llama_load_model_from_file(modelPath, params)
+	handle := load_model(modelPath, uint32(gpuLayers))
 	if handle == 0 {
 		return nil, fmt.Errorf("failed to load model (%s)", modelPath)
 	}
 
 	return &Model{
 		handle: handle,
-		n_embd: llama_n_embd(handle),
+		//n_embd: llama_n_embd(handle),
 	}, nil
 }
 
@@ -62,7 +42,7 @@ func (m *Model) EmbedText(text string) ([]float32, error) {
 
 // Close closes the model and releases any resources associated with it.
 func (m *Model) Close() error {
-	llama_free_model(m.handle)
+	free_model(m.handle)
 	m.handle = 0
 	return nil
 }

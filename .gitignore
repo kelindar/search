@@ -1,5 +1,6 @@
 /refs/
 /build/
+/example/*.dll
 Llama-3.2-1B-Instruct-Q6_K_L.gguf
 *.vcxproj.filters
 *.vcxproj
