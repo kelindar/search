@@ -43,13 +43,11 @@ static int batch_decode(llama_context * ctx, llama_batch & batch, float * output
 
     // run model
     if (llama_model_has_encoder(model) && !llama_model_has_decoder(model)) {
-        // encoder-only model
-        if (llama_encode(ctx, batch) < 0) {
+        if (llama_encode(ctx, batch) < 0) { // encoder-only model
             return -1;
         }
     } else if (!llama_model_has_encoder(model) && llama_model_has_decoder(model)) {
-        // decoder-only model
-        if (llama_decode(ctx, batch) < 0) {
+        if (llama_decode(ctx, batch) < 0) { // decoder-only model
             return -1;
         }
     }
@@ -87,6 +85,14 @@ extern "C" {
     LLAMA_API void load_library(void){
         llama_backend_init();
         llama_numa_init(GGML_NUMA_STRATEGY_DISTRIBUTE);
+        llama_log_set([](ggml_log_level level, const char* text, void* /*user_data*/) {
+            if (level < GGML_LOG_LEVEL_WARN) {
+                return; // noop
+            }
+            
+            fputs(text, stderr);
+            fflush(stderr);
+        }, NULL);
     }
 
     // load the model from the file
@@ -127,33 +133,30 @@ extern "C" {
     LLAMA_API int embed_text(context_t ctx, const char* text, float* out_embeddings, uint32_t* out_tokens){
         const enum llama_pooling_type pooling_type = llama_pooling_type(ctx);
         model_t model = (model_t)llama_get_model(ctx);
-
-        // Max batch size
         const uint64_t n_batch = llama_n_batch(ctx);
 
         // Tokenize the prompt
         auto inp = ::llama_tokenize(ctx, text, true, true);
         *out_tokens = inp.size();
         if (inp.size() > n_batch) {
-            return -1; // Number of tokens exceeds batch size, increase batch size
+            printf("Number of tokens exceeds batch size, increase batch size\n");
+            return 1; // Number of tokens exceeds batch size, increase batch size
         }
 
         // Check if the last token is SEP
         if (inp.empty() || inp.back() != llama_token_sep(model)) {
-            return -2; // Last token is not SEP
+            return 2; // Last token is not SEP
         }
 
         // Initialize batch
         struct llama_batch batch = llama_batch_init(n_batch, 0, 1);
-
-        // Add tokens to batch
         batch_add_seq(batch, inp, 0);
 
         // Decode batch and write embeddings directly to out_embeddings
         const int n_embd = llama_n_embd(model);
         if (batch_decode(ctx, batch, out_embeddings, 1, n_embd, embd_normalize) != 0) {
             llama_batch_free(batch);
-            return -3; // Decoding failed
+            return 3; // Decoding failed
         }
 
         // Clean up
