@@ -34,7 +34,7 @@ static void batch_add_seq(llama_batch & batch, const std::vector<int32_t> & toke
     }
 }
 
-static void batch_decode(llama_context * ctx, llama_batch & batch, float * output, int n_seq, int n_embd, int embd_norm) {
+static int batch_decode(llama_context * ctx, llama_batch & batch, float * output, int n_seq, int n_embd, int embd_norm) {
     const enum llama_pooling_type pooling_type = llama_pooling_type(ctx);
     const struct llama_model * model = llama_get_model(ctx);
 
@@ -42,16 +42,15 @@ static void batch_decode(llama_context * ctx, llama_batch & batch, float * outpu
     llama_kv_cache_clear(ctx);
 
     // run model
-    LOG_INF("%s: n_tokens = %d, n_seq = %d\n", __func__, batch.n_tokens, n_seq);
     if (llama_model_has_encoder(model) && !llama_model_has_decoder(model)) {
         // encoder-only model
         if (llama_encode(ctx, batch) < 0) {
-            LOG_ERR("%s : failed to encode\n", __func__);
+            return -1;
         }
     } else if (!llama_model_has_encoder(model) && llama_model_has_decoder(model)) {
         // decoder-only model
         if (llama_decode(ctx, batch) < 0) {
-            LOG_ERR("%s : failed to decode\n", __func__);
+            return -1;
         }
     }
 
@@ -78,6 +77,7 @@ static void batch_decode(llama_context * ctx, llama_batch & batch, float * outpu
         float * out = output + embd_pos * n_embd;
         llama_embd_normalize(embd, out, n_embd, embd_norm);
     }
+    return 0;
 }
 
 
@@ -107,13 +107,7 @@ extern "C" {
         struct llama_context_params params = llama_context_default_params();
         params.n_ctx = ctx_size;
         params.embeddings = true;
-
-
         return llama_new_context_with_model(model, params);
-        //context_t out = (context_t)malloc(sizeof(context_t));
-        //out->model = model;
-        //out->ctx = llama_new_context_with_model(model, params);
-        //return out;
     }
 
     // free the context and all the resources
@@ -134,7 +128,6 @@ extern "C" {
         const enum llama_pooling_type pooling_type = llama_pooling_type(ctx);
         model_t model = (model_t)llama_get_model(ctx);
             
-            
         // split the prompt into lines
         std::vector<std::string> prompts = split_lines(text, embd_sep);
 
@@ -146,9 +139,7 @@ extern "C" {
         for (const auto & prompt : prompts) {
             auto inp = ::llama_tokenize(ctx, prompt, true, true);
             if (inp.size() > n_batch) {
-                LOG_ERR("%s: number of tokens in input line (%lld) exceeds batch size (%lld), increase batch size and re-run\n",
-                        __func__, (long long int) inp.size(), (long long int) n_batch);
-                return 1;
+                return 1; // number of tokens exceeds batch size, increase batch size
             }
             inputs.push_back(inp);
         }
@@ -157,7 +148,7 @@ extern "C" {
         // it should be automatically added by the tokenizer when 'tokenizer.ggml.add_eos_token' is set to 'true'
         for (auto & inp : inputs) {
             if (inp.empty() || inp.back() != llama_token_sep(model)) {
-                return 1; // last token is not SEP
+                return 2; // last token is not SEP
             }
         }
 
@@ -186,7 +177,6 @@ extern "C" {
         for (int k = 0; k < n_prompts; k++) {
             // clamp to n_batch tokens
             auto & inp = inputs[k];
-
             const uint64_t n_toks = inp.size();
 
             // encode if at capacity
@@ -207,9 +197,8 @@ extern "C" {
         float * out = emb + e * n_embd;
         batch_decode(ctx, batch, out, s, n_embd, embd_normalize);
 
-        
+        // copy embeddings to output
         memcpy(out_embeddings, out, n_embd * sizeof(float));
-
 
         // clean up
         llama_batch_free(batch);

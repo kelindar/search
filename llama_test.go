@@ -2,6 +2,7 @@ package llm
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,11 +12,12 @@ import (
 BenchmarkLLM/encode-24         	     486	   2430962 ns/op	    1536 B/op	       1 allocs/op
 */
 func BenchmarkLLM(b *testing.B) {
-	ctx := loadModel()
-	defer ctx.Close()
+	llm := loadModel()
+	defer llm.Close()
 
 	text := "This is a test sentence we are going to generate embeddings for."
 	b.Run("encode", func(b *testing.B) {
+		ctx := llm.Context(0)
 		for i := 0; i < b.N; i++ {
 			_, err := ctx.EmbedText(text)
 			assert.NoError(b, err)
@@ -31,4 +33,19 @@ func loadModel() *Model {
 		panic(err)
 	}
 	return ctx
+}
+
+func TestEmbedText(t *testing.T) {
+	llm := loadModel()
+	defer llm.Close()
+
+	var sb strings.Builder
+	for i := 0; i < 10; i++ {
+		sb.WriteString("This is a test sentence we are going to generate embeddings for.\n")
+	}
+
+	out, err := llm.EmbedText(sb.String())
+	assert.NoError(t, err)
+	assert.NotZero(t, len(out))
+
 }
