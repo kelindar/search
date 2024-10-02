@@ -9,7 +9,7 @@ import (
 )
 
 /*
-BenchmarkLLM/encode-24         	     486	   2430962 ns/op	    1536 B/op	       1 allocs/op
+BenchmarkLLM/encode-24		444	   2708159 ns/op	18.00 tok/s		2024 B/op		11 allocs/op
 */
 func BenchmarkLLM(b *testing.B) {
 	llm := loadModel()
@@ -22,6 +22,8 @@ func BenchmarkLLM(b *testing.B) {
 			_, err := ctx.EmbedText(text)
 			assert.NoError(b, err)
 		}
+
+		b.ReportMetric(float64(ctx.Tokens())/float64(b.N), "tok/s")
 	})
 }
 
@@ -47,5 +49,4 @@ func TestEmbedText(t *testing.T) {
 	out, err := llm.EmbedText(sb.String())
 	assert.NoError(t, err)
 	assert.NotZero(t, len(out))
-
 }

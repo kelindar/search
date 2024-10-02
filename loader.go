@@ -19,7 +19,7 @@ var load_context func(model uintptr, ctx_size uint32) uintptr
 var free_model func(model uintptr)
 var free_context func(ctx uintptr)
 var embed_size func(model uintptr) int32
-var embed_text func(model uintptr, text string, embeddings []float32) int
+var embed_text func(model uintptr, text string, out_embeddings []float32, out_tokens *uint32) int
 
 func init() {
 	libpath, err := findLlama()

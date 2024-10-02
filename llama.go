@@ -1,6 +1,9 @@
 package llm
 
-import "fmt"
+import (
+	"fmt"
+	"sync/atomic"
+)
 
 // Model represents a loaded LLM/Embedding model.
 type Model struct {
@@ -11,6 +14,7 @@ type Model struct {
 type Context struct {
 	parent *Model
 	handle uintptr
+	tokens atomic.Uint64
 }
 
 // New creates a new  model from the given model file.
@@ -57,6 +61,11 @@ func (ctx *Context) Close() error {
 
 // --------------------------------- Context ---------------------------------
 
+// Tokens returns the number of tokens processed by the context.
+func (ctx *Context) Tokens() uint {
+	return uint(ctx.tokens.Load())
+}
+
 // EmbedText embeds the given text using the model.
 func (ctx *Context) EmbedText(text string) ([]float32, error) {
 	switch {
@@ -66,16 +75,19 @@ func (ctx *Context) EmbedText(text string) ([]float32, error) {
 		return nil, fmt.Errorf("model does not support embedding")
 	}
 
-	embeddings := make([]float32, ctx.parent.n_embd)
-
-	ret := embed_text(ctx.handle, text, embeddings)
+	out := make([]float32, ctx.parent.n_embd)
+	tok := uint32(0)
+	ret := embed_text(ctx.handle, text, out, &tok)
+	ctx.tokens.Add(uint64(tok))
 	switch ret {
 	case 0:
-		return embeddings, nil
-	case 1:
-		return nil, fmt.Errorf("number of tokens exceeds batch size")
-	case 2:
+		return out, nil
+	case -1:
+		return nil, fmt.Errorf("number of tokens (%d) exceeds batch size", tok)
+	case -2:
 		return nil, fmt.Errorf("last token in the prompt is not SEP")
+	case -3:
+		return nil, fmt.Errorf("failed to decode/encode text")
 	default:
 		return nil, fmt.Errorf("failed to embed text (code=%d)", ret)
 	}

@@ -123,84 +123,40 @@ extern "C" {
         return llama_n_embd(model);
     }
 
-    // embed the text and return the embeddings
-    LLAMA_API int embed_text(context_t ctx, const char* text, float* out_embeddings) {
+    // embed the text and return the embeddings.
+    LLAMA_API int embed_text(context_t ctx, const char* text, float* out_embeddings, uint32_t* out_tokens){
         const enum llama_pooling_type pooling_type = llama_pooling_type(ctx);
         model_t model = (model_t)llama_get_model(ctx);
-            
-        // split the prompt into lines
-        std::vector<std::string> prompts = split_lines(text, embd_sep);
 
-        // max batch size
+        // Max batch size
         const uint64_t n_batch = llama_n_batch(ctx);
 
-        // tokenize the prompts and trim
-        std::vector<std::vector<int32_t>> inputs;
-        for (const auto & prompt : prompts) {
-            auto inp = ::llama_tokenize(ctx, prompt, true, true);
-            if (inp.size() > n_batch) {
-                return 1; // number of tokens exceeds batch size, increase batch size
-            }
-            inputs.push_back(inp);
+        // Tokenize the prompt
+        auto inp = ::llama_tokenize(ctx, text, true, true);
+        *out_tokens = inp.size();
+        if (inp.size() > n_batch) {
+            return -1; // Number of tokens exceeds batch size, increase batch size
         }
 
-        // check if the last token is SEP
-        // it should be automatically added by the tokenizer when 'tokenizer.ggml.add_eos_token' is set to 'true'
-        for (auto & inp : inputs) {
-            if (inp.empty() || inp.back() != llama_token_sep(model)) {
-                return 2; // last token is not SEP
-            }
+        // Check if the last token is SEP
+        if (inp.empty() || inp.back() != llama_token_sep(model)) {
+            return -2; // Last token is not SEP
         }
 
-        // initialize batch
-        const int n_prompts = prompts.size();
+        // Initialize batch
         struct llama_batch batch = llama_batch_init(n_batch, 0, 1);
 
-        // count number of embeddings
-        int n_embd_count = 0;
-        if (pooling_type == LLAMA_POOLING_TYPE_NONE) {
-            for (int k = 0; k < n_prompts; k++) {
-                n_embd_count += inputs[k].size();
-            }
-        } else {
-            n_embd_count = n_prompts;
-        }
+        // Add tokens to batch
+        batch_add_seq(batch, inp, 0);
 
-        // allocate output
+        // Decode batch and write embeddings directly to out_embeddings
         const int n_embd = llama_n_embd(model);
-        std::vector<float> embeddings(n_embd_count * n_embd, 0);
-        float * emb = embeddings.data();
-
-        // break into batches
-        int e = 0; // number of embeddings already stored
-        int s = 0; // number of prompts in current batch
-        for (int k = 0; k < n_prompts; k++) {
-            // clamp to n_batch tokens
-            auto & inp = inputs[k];
-            const uint64_t n_toks = inp.size();
-
-            // encode if at capacity
-            if (batch.n_tokens + n_toks > n_batch) {
-                float * out = emb + e * n_embd;
-                batch_decode(ctx, batch, out, s, n_embd, embd_normalize);
-                e += pooling_type == LLAMA_POOLING_TYPE_NONE ? batch.n_tokens : s;
-                s = 0;
-                llama_batch_clear(batch);
-            }
-
-            // add to batch
-            batch_add_seq(batch, inp, s);
-            s += 1;
+        if (batch_decode(ctx, batch, out_embeddings, 1, n_embd, embd_normalize) != 0) {
+            llama_batch_free(batch);
+            return -3; // Decoding failed
         }
 
-        // final batch
-        float * out = emb + e * n_embd;
-        batch_decode(ctx, batch, out, s, n_embd, embd_normalize);
-
-        // copy embeddings to output
-        memcpy(out_embeddings, out, n_embd * sizeof(float));
-
-        // clean up
+        // Clean up
         llama_batch_free(batch);
         return 0;
     }
