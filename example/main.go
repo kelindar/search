@@ -8,8 +8,32 @@ import (
 )
 
 func main() {
+	exampleCompleteText()
+}
+
+func exampleCompleteText() {
 	m, err := llm.New("../dist/Llama-3.2-1B-Instruct-Q6_K_L.gguf", 0)
 	//m, err := llm.New("../dist/MiniLM-L6-v2.Q4_K_M.gguf", 0)
+	if err != nil {
+		panic(err)
+	}
+
+	defer m.Close()
+
+	ctx := m.Context(0)
+	defer ctx.Close()
+
+	text := "You are in a forest. You see a castle in the distance. You walk towards it and see a sign that says:"
+	out, err := ctx.CompleteText(text, 100)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(out)
+}
+
+func exampleEmbedText() {
+	m, err := llm.New("../dist/MiniLM-L6-v2.Q4_K_M.gguf", 0)
 	if err != nil {
 		panic(err)
 	}
@@ -22,10 +46,6 @@ func main() {
 		"An agile brown llama hops over a tired pug.",
 		"A beautiful sunset on the beach paints the sky with vibrant colors.",
 	}
-
-	/*prompts := []string{
-		"pug", "dog", "fox", "llama", "sunset", "beach", "sky", "colors",
-	}*/
 
 	embeddings := make([][]float32, len(prompts))
 	for i, prompt := range prompts {
@@ -44,7 +64,6 @@ func main() {
 			fmt.Printf("   2: %s\n", prompts[j])
 		}
 	}
-
 }
 
 // cosine computes the cosine similarity between two vectors. Higher values

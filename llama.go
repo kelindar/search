@@ -41,14 +41,21 @@ func (m *Model) Close() error {
 func (m *Model) Context(size int) *Context {
 	return &Context{
 		parent: m,
-		handle: load_context(m.handle, uint32(size)),
+		handle: load_context(m.handle, uint32(size), false),
 	}
 }
 
 // EmbedText embeds the given text using the model.
 func (m *Model) EmbedText(text string) ([]float32, error) {
-	ctx := m.Context(0)
+	//ctx := m.Context(0)
+	//defer ctx.Close()
+
+	ctx := &Context{
+		parent: m,
+		handle: load_context(m.handle, 0, true),
+	}
 	defer ctx.Close()
+
 	return ctx.EmbedText(text)
 }
 
@@ -90,5 +97,30 @@ func (ctx *Context) EmbedText(text string) ([]float32, error) {
 		return nil, fmt.Errorf("failed to decode/encode text")
 	default:
 		return nil, fmt.Errorf("failed to embed text (code=%d)", ret)
+	}
+}
+
+func (ctx *Context) CompleteText(text string, n int) (string, error) {
+	switch {
+	case ctx.handle == 0 || ctx.parent.handle == 0:
+		return "", fmt.Errorf("context is not initialized")
+	}
+
+	// align to the closest page of 128
+	out := make([]byte, (n+511)&^511)
+	ret := complete_text(ctx.handle, text, out, uint32(len(out)), uint32(n))
+	switch ret {
+	case 0:
+		return string(out), nil
+	case 1:
+		return "", fmt.Errorf("failed to complete text")
+	case 2:
+		return "", fmt.Errorf("failed to evaluate initial prompt")
+	case 3:
+		return "", fmt.Errorf("failed to generate text")
+	case 4:
+		return "", fmt.Errorf("output buffer is too small (%d)", len(out))
+	default:
+		return "", fmt.Errorf("failed to complete text (code=%d)", ret)
 	}
 }

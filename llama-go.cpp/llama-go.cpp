@@ -78,21 +78,24 @@ static int batch_decode(llama_context * ctx, llama_batch & batch, float * output
     return 0;
 }
 
-
 extern "C" {
 
     // load the library and initialize the backend
-    LLAMA_API void load_library(void){
+    LLAMA_API void load_library(ggml_log_level desired){
         llama_backend_init();
         llama_numa_init(GGML_NUMA_STRATEGY_DISTRIBUTE);
-        llama_log_set([](ggml_log_level level, const char* text, void* /*user_data*/) {
-            if (level < GGML_LOG_LEVEL_WARN) {
+
+        // Set the log level
+        auto desired_ptr = new ggml_log_level;
+        *desired_ptr = desired;
+        llama_log_set([](ggml_log_level level, const char* text, void* user_data) {
+            if (level < *(ggml_log_level*)user_data) {
                 return; // noop
             }
             
             fputs(text, stderr);
             fflush(stderr);
-        }, NULL);
+        }, desired_ptr);
     }
 
     // load the model from the file
@@ -109,10 +112,10 @@ extern "C" {
     }
 
     // create a context with the model and the context size
-    LLAMA_API context_t load_context(model_t model, const uint32_t ctx_size){
+    LLAMA_API context_t load_context(model_t model, const uint32_t ctx_size, const bool embeddings){
         struct llama_context_params params = llama_context_default_params();
         params.n_ctx = ctx_size;
-        params.embeddings = true;
+        params.embeddings = embeddings;
         return llama_new_context_with_model(model, params);
     }
 
@@ -163,4 +166,100 @@ extern "C" {
         llama_batch_free(batch);
         return 0;
     }
+
+    // Generate text predictions based on a given prompt
+    LLAMA_API int complete_text(context_t ctx, const char* prompt, char* output_text, uint32_t max_output_length, uint32_t n_predict) {
+        model_t model = (model_t)llama_get_model(ctx);
+        const int n_ctx = llama_n_ctx(ctx);
+        const uint64_t n_batch = llama_n_batch(ctx);
+
+        // Tokenize the prompt
+        std::vector<llama_token> tokens_list;
+        tokens_list = ::llama_tokenize(ctx, prompt, true);
+
+        // Check if context size is sufficient
+        if (tokens_list.size() + n_predict > n_ctx) {
+            return 1; // Error: context size exceeded
+        }
+
+        // Initialize batch
+        llama_batch batch = llama_batch_init(n_batch, 0, 1);
+        for (size_t i = 0; i < tokens_list.size(); i++) {
+            llama_batch_add(batch, tokens_list[i], i, { 0 }, false);
+        }
+        batch.logits[batch.n_tokens - 1] = true;
+
+        // Evaluate the initial prompt
+        if (llama_decode(ctx, batch) != 0) {
+            llama_batch_free(batch);
+            return 2; // Decoding failed
+        }
+
+        // Set up the sampler (using greedy sampling)
+        auto sparams = llama_sampler_chain_default_params();
+        sparams.no_perf = false;
+        llama_sampler* smpl = llama_sampler_chain_init(sparams);
+        llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
+
+        // Main loop to generate tokens
+        int n_cur = tokens_list.size();
+        int n_decode = 0;
+        std::vector<llama_token> output_tokens;
+
+        while (n_decode < n_predict) {
+            // Sample the next token
+            const llama_token new_token_id = llama_sampler_sample(smpl, ctx, -1);
+
+            // Check for end of generation
+            if (llama_token_is_eog(model, new_token_id)) {
+                break;
+            }
+
+            // Add token to output
+            output_tokens.push_back(new_token_id);
+
+            // Prepare the next batch
+            llama_batch_clear(batch);
+
+            // Push new token for next evaluation
+            llama_batch_add(batch, new_token_id, n_cur, { 0 }, true);
+
+            n_decode += 1;
+            n_cur += 1;
+
+            // Evaluate the current batch
+            if (llama_decode(ctx, batch) != 0) {
+                llama_batch_free(batch);
+                llama_sampler_free(smpl);
+                return 3; // Decoding failed
+            }
+
+            // Check if context size exceeded
+            if (n_cur >= n_ctx) {
+                break;
+            }
+        }
+
+        // Convert output tokens to text
+        std::string generated_text;
+        for (auto id : output_tokens) {
+            generated_text += llama_token_to_piece(ctx, id);
+        }
+
+        // Copy generated text to output buffer
+        if (generated_text.size() >= max_output_length) {
+            // Output buffer too small
+            llama_batch_free(batch);
+            llama_sampler_free(smpl);
+            return 4;
+        }
+        strcpy(output_text, generated_text.c_str());
+
+        // Clean up
+        llama_batch_free(batch);
+        llama_sampler_free(smpl);
+
+        return 0;
+    }
+
 }
