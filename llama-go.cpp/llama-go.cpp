@@ -199,6 +199,12 @@ extern "C" {
         auto sparams = llama_sampler_chain_default_params();
         sparams.no_perf = false;
         llama_sampler* smpl = llama_sampler_chain_init(sparams);
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_k(50)); // Top 50 tokens
+        llama_sampler_chain_add(smpl, llama_sampler_init_top_p(0.9, 1)); // Top 90% probability
+        llama_sampler_chain_add(smpl, llama_sampler_init_temp (0.8)); // Temperature 0.8
+
+        // typically, the chain should end with a sampler such as "greedy", "dist" or "mirostat"
+        // this sampler will be responsible to select the actual token
         llama_sampler_chain_add(smpl, llama_sampler_init_greedy());
 
         // Main loop to generate tokens
@@ -248,17 +254,15 @@ extern "C" {
 
         // Copy generated text to output buffer
         if (generated_text.size() >= max_output_length) {
-            // Output buffer too small
             llama_batch_free(batch);
             llama_sampler_free(smpl);
-            return 4;
+            return 4; // Output buffer too small
         }
         strcpy(output_text, generated_text.c_str());
 
         // Clean up
         llama_batch_free(batch);
         llama_sampler_free(smpl);
-
         return 0;
     }
 

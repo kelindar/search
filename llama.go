@@ -106,7 +106,7 @@ func (ctx *Context) CompleteText(text string, n int) (string, error) {
 		return "", fmt.Errorf("context is not initialized")
 	}
 
-	// align to the closest page of 128
+	// align to the closest page of 512
 	out := make([]byte, (n+511)&^511)
 	ret := complete_text(ctx.handle, text, out, uint32(len(out)), uint32(n))
 	switch ret {

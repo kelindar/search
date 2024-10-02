@@ -42,7 +42,7 @@ func init() {
 	purego.RegisterLibFunc(&complete_text, libptr, "complete_text")
 
 	// Initialize the library
-	load_library(0)
+	load_library(2) // Log level WARN
 }
 
 // --------------------------------- Library Lookup ---------------------------------
