@@ -8,7 +8,8 @@ import (
 )
 
 func main() {
-	exampleCompleteText()
+	//exampleCompleteText()
+	exampleEmbedText()
 }
 
 func exampleCompleteText() {
@@ -23,17 +24,35 @@ func exampleCompleteText() {
 	ctx := m.Context(0)
 	defer ctx.Close()
 
-	text := "You are in a forest. You see a castle in the distance. You walk towards it and see a sign that says:"
-	out, err := ctx.CompleteText(text, 100)
-	if err != nil {
-		panic(err)
+	template := `### System:
+	You are a character in an adventure game.
+
+	### Instruction:
+	%s
+
+	### Response (10 words, engaging, natural, authentic, descriptive, creative):
+	`
+
+	for {
+		var input string
+		fmt.Printf("\n >> ")
+		fmt.Scanln(&input)
+
+		text := fmt.Sprintf(template, input)
+		out, err := ctx.CompleteText(text, 2048)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(out)
 	}
 
-	fmt.Println(out)
 }
 
 func exampleEmbedText() {
 	m, err := llm.New("../dist/MiniLM-L6-v2.Q4_K_M.gguf", 0)
+	//m, err = llm.New("../dist/e5-small-v2.Q4_K_M.gguf", 0)
+	//m, err := llm.New("../dist/e5-base-v2.Q5_K_M.gguf", 0)
 	if err != nil {
 		panic(err)
 	}

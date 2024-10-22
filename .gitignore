@@ -1,7 +1,7 @@
 /refs/
 /build/
 /example/*.dll
-Llama-3.2-1B-Instruct-Q6_K_L.gguf
+*.gguf
 *.vcxproj.filters
 *.vcxproj
 *.sln
@@ -9,3 +9,6 @@ CMakeFiles/
 *.cmake
 CMakeCache.txt
 /*.dll
+*/sift/
+*/siftsmall/
+*.dat
