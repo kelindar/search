@@ -1,5 +1,6 @@
 /refs/
 /build/
+/eval/*.dll
 /example/*.dll
 *.gguf
 *.vcxproj.filters

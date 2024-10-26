@@ -1,4 +1,4 @@
-# Go Wrapper for llama.cpp Library
+# Go Embeddings with llama.cpp
 
 ## Precompiled binaries
 
@@ -43,3 +43,14 @@ cmake --build . --config Release
 ```
 
 If you are using Visual Studio, solution files are generated. You can open the solution file with Visual Studio and build the project from there. The `bin` directory would then contain `llama.dll` and `ggml.dll`.
+
+### GPU and other options
+
+To enable GPU support (e.g. Vulkan), you'll need to add an appropriate flag to the CMake command, please refer to refer to the [llama.cpp](https://github.com/ggerganov/llama.cpp/blob/master/docs/build.md#vulkan) build documentation for more details. For example, to compile with Vulkan support on Windows make sure Vulkan SDK is installed and then run the following commands:
+
+```bash
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DGGML_VULKAN=ON ..
+cmake --build . --config Release
+```

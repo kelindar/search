@@ -2,15 +2,15 @@ package llm
 
 import (
 	"fmt"
-	"sync"
+	"io"
 	"sync/atomic"
 )
 
 // Model represents a loaded LLM/Embedding model.
 type Model struct {
-	handle  uintptr
-	n_embd  int32
-	ctxpool sync.Pool
+	handle uintptr
+	n_embd int32
+	pool   *pool[*Context]
 }
 
 // New creates a new  model from the given model file.
@@ -26,9 +26,9 @@ func New(modelPath string, gpuLayers int) (*Model, error) {
 	}
 
 	// Initialize the context pool to reduce allocations
-	model.ctxpool.New = func() any {
+	model.pool = newPool(16, func() *Context {
 		return model.Context(0)
-	}
+	})
 	return model, nil
 }
 
@@ -36,6 +36,7 @@ func New(modelPath string, gpuLayers int) (*Model, error) {
 func (m *Model) Close() error {
 	free_model(m.handle)
 	m.handle = 0
+	m.pool.Close()
 	return nil
 }
 
@@ -49,8 +50,8 @@ func (m *Model) Context(size int) *Context {
 
 // EmbedText embeds the given text using the model.
 func (m *Model) EmbedText(text string) ([]float32, error) {
-	ctx := m.ctxpool.Get().(*Context)
-	defer m.ctxpool.Put(ctx)
+	ctx := m.pool.Get()
+	defer m.pool.Put(ctx)
 	return ctx.EmbedText(text)
 }
 
@@ -98,5 +99,48 @@ func (ctx *Context) EmbedText(text string) ([]float32, error) {
 		return nil, fmt.Errorf("failed to decode/encode text")
 	default:
 		return nil, fmt.Errorf("failed to embed text (code=%d)", ret)
+	}
+}
+
+// --------------------------------- Resource Pool ---------------------------------
+
+// Pool is a generic pool of resources that can be reused.
+type pool[T io.Closer] struct {
+	pool chan T
+	make func() T
+}
+
+// newPool creates a new pool of resources.
+func newPool[T io.Closer](size int, new func() T) *pool[T] {
+	return &pool[T]{
+		pool: make(chan T, size),
+		make: new,
+	}
+}
+
+// Get returns a resource from the pool or creates a new one.
+func (p *pool[T]) Get() T {
+	select {
+	case x := <-p.pool:
+		return x
+	default:
+		return p.make()
+	}
+}
+
+// Put returns the resource to the pool.
+func (p *pool[T]) Put(x T) {
+	select {
+	case p.pool <- x:
+	default:
+		x.Close() // Close the resource if the pool is full
+	}
+}
+
+// Close closes the pool and releases any resources associated with it.
+func (p *pool[T]) Close() {
+	close(p.pool)
+	for x := range p.pool {
+		x.Close()
 	}
 }
