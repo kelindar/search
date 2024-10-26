@@ -23,7 +23,7 @@ func main() {
 
 	// Load a pre-embedded dataset and create an exact search index
 	data, _ := loadDataset("../search/dataset.gob")
-	index := search.NewExact[string]()
+	index := search.NewIndex[string]()
 
 	// Embed the sentences and calculate similarities
 	for _, v := range data {

@@ -10,13 +10,13 @@ import (
 
 /*
 cpu: 13th Gen Intel(R) Core(TM) i7-13700K
-BenchmarkBruteForce-24    	    4278	    286199 ns/op	     744 B/op	       5 allocs/op
+BenchmarkBruteForce-24    	    3918	    285240 ns/op	     744 B/op	       5 allocs/op
 */
 func BenchmarkBruteForce(b *testing.B) {
 	data, err := loadDataset()
 	assert.NoError(b, err)
 
-	bag := NewExact[string]()
+	bag := NewIndex[string]()
 	for _, entry := range data {
 		bag.Add(entry.Vector, entry.Label)
 	}

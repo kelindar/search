@@ -10,25 +10,27 @@ type entry[T any] struct {
 	Value  T
 }
 
+// Result represents a search result.
 type Result[T any] struct {
 	entry[T]
 	Relevance float64 // The relevance of the result
 }
 
-type Bag[T any] struct {
+// Index represents a brute-force search index, returning exact results.
+type Index[T any] struct {
 	arr []entry[T]
 	dim int
 }
 
-// NewExact creates a new exact search index.
-func NewExact[T any]() *Bag[T] {
-	return &Bag[T]{
+// NewIndex creates a new exact search index.
+func NewIndex[T any]() *Index[T] {
+	return &Index[T]{
 		arr: make([]entry[T], 0),
 	}
 }
 
 // Add adds a new vector to the search index.
-func (b *Bag[T]) Add(vx Vector, item T) {
+func (b *Index[T]) Add(vx Vector, item T) {
 	b.arr = append(b.arr, entry[T]{
 		Vector: vx,
 		Value:  item,
@@ -36,7 +38,7 @@ func (b *Bag[T]) Add(vx Vector, item T) {
 }
 
 // Search searches the index for the k-nearest neighbors of the query vector.
-func (b *Bag[T]) Search(query Vector, k int) iter.Seq2[float64, T] {
+func (b *Index[T]) Search(query Vector, k int) iter.Seq2[float64, T] {
 	return func(yield func(float64, T) bool) {
 		for _, r := range b.search(query, k) {
 			if !yield(r.Relevance, r.Value) {
@@ -47,7 +49,7 @@ func (b *Bag[T]) Search(query Vector, k int) iter.Seq2[float64, T] {
 }
 
 // Search implements a brute-force search algorithm to find the k-nearest neighbors
-func (b *Bag[T]) search(query Vector, k int) []Result[T] {
+func (b *Index[T]) search(query Vector, k int) []Result[T] {
 	if k <= 0 {
 		return nil
 	}
