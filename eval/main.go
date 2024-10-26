@@ -32,7 +32,9 @@ func loadModel() *llm.Model {
 
 func main() {
 	// mainEval()
-	mainSearch()
+	//mainSearchHNSW()
+	mainSearchBrute()
+	//mainSearchLSH()
 }
 
 func mainEval() {
@@ -88,13 +90,123 @@ type embedding struct {
 	Text   string
 }
 
-func mainSearch() {
+func mainSearchBrute() {
+
+	// Load your language model
+	llm := loadModel()
+	defer llm.Close()
+
+	g := search.NewBag[string](384)
+
+	// Embed the sentences and calculate similarities
+	data, _ := loadSICK()
+	for _, v := range data {
+		text := strings.TrimSpace(v.Pair[0])
+		vector, _ := llm.EmbedText(text)
+		g.Add(vector, text)
+	}
+
+	r := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("Enter a sentence to search (or 'exit' to quit): ")
+		query, _ := r.ReadString('\n')
+		query = strings.TrimSpace(query)
+
+		switch q := strings.TrimSpace(query); q {
+		case "exit", "quit", "q", "bye", "":
+			return
+		default:
+			embedding, _ := llm.EmbedText(query)
+
+			start := time.Now()
+			results := g.Search(embedding, 50)
+
+			// Print the results
+			fmt.Printf("found %d results (%v)\n", len(results), time.Since(start))
+			for i, v := range results {
+				printResult(embedding, v.Vector, v.Value)
+				if i >= 10 {
+					break
+				}
+			}
+		}
+	}
+}
+
+func mainSearchHNSW() {
+
+	// Load your language model
+	llm := loadModel()
+	defer llm.Close()
+
+	g := search.NewGraph[int]()
+	b := search.NewBag[string](384)
+
+	// Embed the sentences and calculate similarities
+
+	corpus := make([]embedding, 0, 10000)
+	data, _ := loadSICK()
+	for i, v := range data {
+		text := strings.TrimSpace(v.Pair[0])
+		vector, _ := llm.EmbedText(text)
+		g.Add(search.MakeNode(i, vector))
+		b.Add(vector, text)
+		corpus = append(corpus, embedding{
+			Vector: vector,
+			Text:   text,
+		})
+	}
+
+	r := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("Enter a sentence to search (or 'exit' to quit): ")
+		query, _ := r.ReadString('\n')
+		query = strings.TrimSpace(query)
+
+		switch q := strings.TrimSpace(query); q {
+		case "exit", "quit", "q", "bye", "":
+			return
+		default:
+			embedding, _ := llm.EmbedText(query)
+
+			start := time.Now()
+			results := g.Search(embedding, 50)
+
+			// Sort the results by similarity to the query
+			sort.Slice(results, func(i, j int) bool {
+				return search.Cosine(results[i].Value, embedding) > search.Cosine(results[j].Value, embedding)
+			})
+
+			// Print the results
+			fmt.Printf("found %d results (%v)\n", len(results), time.Since(start))
+			for i, v := range results {
+				printResult(embedding, v.Value, corpus[v.Key].Text)
+				if i >= 10 {
+					break
+				}
+			}
+
+			// Print the truth
+			truth := b.Search(embedding, 50)
+			fmt.Println("exact results:", len(truth))
+			for i, v := range truth {
+				printResult(embedding, v.Vector, v.Value)
+				if i >= 10 {
+					break
+				}
+			}
+		}
+	}
+}
+
+func mainSearchLSH() {
 
 	// Load your language model
 	llm := loadModel()
 	defer llm.Close()
 
 	lsh := search.NewLSH[*embedding](10000, 384)
+	b := search.NewBag[string](384)
 
 	// Embed the sentences and calculate similarities
 	data, _ := loadSICK()
@@ -107,6 +219,7 @@ func mainSearch() {
 
 		uniq[text] = struct{}{}
 		vector, _ := llm.EmbedText(text)
+		b.Add(vector, text)
 		lsh.Add(vector, &embedding{
 			Vector: vector,
 			Text:   text,
@@ -124,6 +237,8 @@ func mainSearch() {
 			return
 		default:
 			embedding, _ := llm.EmbedText(query)
+
+			start := time.Now()
 			results := lsh.Query(embedding)
 
 			// Sort the results by similarity to the query
@@ -132,20 +247,36 @@ func mainSearch() {
 			})
 
 			// Print the results
-			fmt.Printf("found %d results\n", len(results))
-			for _, v := range results {
-				dx := search.Cosine(embedding, v.Vector)
-				switch {
-				case dx >= 0.9:
-					fmt.Printf(" ✅ %s (%.0f%%)\n", v.Text, math.Round(dx*100))
-				case dx >= 0.5:
-					fmt.Printf(" ❔ %s (%.0f%%)\n", v.Text, math.Round(dx*100))
-				default:
-					fmt.Printf(" ❌ %s (%.0f%%)\n", v.Text, math.Round(dx*100))
+			fmt.Printf("found %d results (%v)\n", len(results), time.Since(start))
+			for i, v := range results {
+				printResult(embedding, v.Vector, v.Text)
+				if i >= 10 {
+					break
 				}
+			}
 
+			// Print the truth
+			truth := b.Search(embedding, 50)
+			fmt.Println("exact results:", len(truth))
+			for i, v := range truth {
+				printResult(embedding, v.Vector, v.Value)
+				if i >= 10 {
+					break
+				}
 			}
 		}
+	}
+}
+
+func printResult(embedding, v []float32, text string) {
+	dx := search.Cosine(embedding, v)
+	switch {
+	case dx >= 0.85:
+		fmt.Printf(" ✅ %s (%.0f%%)\n", text, math.Round(dx*100))
+	case dx >= 0.5:
+		fmt.Printf(" ❔ %s (%.0f%%)\n", text, math.Round(dx*100))
+	default:
+		fmt.Printf(" ❌ %s (%.0f%%)\n", text, math.Round(dx*100))
 	}
 }
 

@@ -3,9 +3,11 @@ module github.com/kelindar/llm
 go 1.23.1
 
 require (
+	github.com/coder/hnsw v0.6.0
 	github.com/ebitengine/purego v0.8.0
 	github.com/stretchr/testify v1.9.0
 	github.com/viant/vec v0.2.3
+	golang.org/x/exp v0.0.0-20240506185415-9bf2ced13842
 )
 
 require (

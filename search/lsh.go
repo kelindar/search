@@ -8,7 +8,7 @@ import (
 // LSH implements Locality-Sensitive Hashing for cosine similarity
 type LSH[T comparable] struct {
 	nt, nf int              // Number of tables and hash functions
-	planes [][][]float32    // Hyperplanes for each hash function in each table
+	planes [][][]float64    // Hyperplanes for each hash function in each table
 	tables []map[uint64][]T // Hash tables mapping hash values to vector indices
 	dim    int              // Dimensionality of input vectors
 }
@@ -16,12 +16,13 @@ type LSH[T comparable] struct {
 // NewLSH initializes a new LSH instance
 func NewLSH[T comparable](capacity, dim int) *LSH[T] {
 	nf, nt := estimateLSH(capacity, dim, 0.10) // 10% collision probability
-	planes := make([][][]float32, nt)
+	println("nf", nf, "nt", nt)
+	planes := make([][][]float64, nt)
 	tables := make([]map[uint64][]T, nt)
 
 	// Initialize hyperplanes for this table
 	for i := 0; i < nt; i++ {
-		planes[i] = make([][]float32, nf)
+		planes[i] = make([][]float64, nf)
 		for j := 0; j < nf; j++ {
 			planes[i][j] = randPlane(dim)
 		}
@@ -43,6 +44,8 @@ func NewLSH[T comparable](capacity, dim int) *LSH[T] {
 // vector: The vector to insert.
 // index: An identifier for the vector (e.g., its index in the dataset).
 func (lsh *LSH[T]) Add(vector []float32, index T) {
+	normalize(vector)
+
 	for i := 0; i < lsh.nt; i++ {
 		hash := lsh.hash(vector, i)
 		lsh.tables[i][hash] = append(lsh.tables[i][hash], index)
@@ -52,6 +55,8 @@ func (lsh *LSH[T]) Add(vector []float32, index T) {
 // Query finds candidate neighbors for the given vector.
 // Returns a slice of indices of candidate vectors.
 func (lsh *LSH[T]) Query(vector []float32) []T {
+	normalize(vector)
+
 	candidates := make(map[T]struct{}, 64)
 
 	for i := 0; i < lsh.nt; i++ {
@@ -74,9 +79,9 @@ func (lsh *LSH[T]) hash(vector []float32, table int) uint64 {
 	var hash uint64
 
 	for i, hp := range lsh.planes[table] {
-		var dot float32
+		var dot float64
 		for d := 0; d < lsh.dim; d++ {
-			dot += vector[d] * hp[d]
+			dot += float64(vector[d]) * hp[d]
 		}
 		if dot >= 0 {
 			hash |= 1 << uint(i)
@@ -87,10 +92,10 @@ func (lsh *LSH[T]) hash(vector []float32, table int) uint64 {
 }
 
 // randPlane generates a new random hyperplane for a hash function
-func randPlane(n int) []float32 {
-	out := make([]float32, n)
+func randPlane(n int) []float64 {
+	out := make([]float64, n)
 	for d := 0; d < n; d++ {
-		out[d] = float32(rand.Float32())
+		out[d] = rand.Float64()
 	}
 	return out
 }
@@ -118,4 +123,20 @@ func estimateLSH(capacity, dim int, p float64) (nf, nt int) {
 	nt = max(nt, 1) // Ensure at least one hash table
 
 	return nf, nt
+}
+
+func normalize(vector []float32) {
+	var sumSquares float64
+	for _, v := range vector {
+		sumSquares += float64(v * v)
+	}
+
+	norm := float32(math.Sqrt(sumSquares))
+	if norm == 0 {
+		return // Can't normalize a zero vector
+	}
+
+	for i := range vector {
+		vector[i] /= norm
+	}
 }
