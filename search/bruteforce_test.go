@@ -24,7 +24,7 @@ func BenchmarkBruteForce(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for v := range bag.Search(data[i%1000].Vector, 5) {
+		for _, v := range bag.Search(data[i%1000].Vector, 5) {
 			_ = v
 		}
 	}

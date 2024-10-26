@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"encoding/csv"
 	"fmt"
 	"log"
@@ -10,11 +9,9 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/kelindar/llm"
-	"github.com/kelindar/llm/search"
 )
 
 func loadModel() *llm.Model {
@@ -31,11 +28,6 @@ func loadModel() *llm.Model {
 }
 
 func main() {
-	// mainEval()
-	mainSearch()
-}
-
-func mainEval() {
 	data, _ := loadSICK()
 
 	// Create slices to store predicted and human scores
@@ -81,63 +73,6 @@ func mainEval() {
 	}
 
 	fmt.Printf("✅ Pearson correlation: %.4f, MSE: %.4f\n", pearson, mse)
-}
-
-type embedding struct {
-	Vector []float32
-	Text   string
-}
-
-func mainSearch() {
-
-	// Load your language model
-	llm := loadModel()
-	defer llm.Close()
-
-	g := search.NewExact[string]()
-
-	// Embed the sentences and calculate similarities
-	data, _ := loadSICK()
-	for _, v := range data {
-		text := strings.TrimSpace(v.Pair[0])
-		vector, _ := llm.EmbedText(text)
-		g.Add(vector, text)
-	}
-
-	r := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Printf("Enter a sentence to search (or 'exit' to quit): ")
-		query, _ := r.ReadString('\n')
-		query = strings.TrimSpace(query)
-
-		switch q := strings.TrimSpace(query); q {
-		case "exit", "quit", "q", "bye", "":
-			return
-		default:
-			embedding, _ := llm.EmbedText(query)
-
-			start := time.Now()
-			results := g.Search(embedding, 10)
-
-			// Print the results
-			fmt.Printf("found %d results (%v)\n", len(results), time.Since(start))
-			for _, v := range results {
-				printResult(embedding, v.Vector, v.Value)
-			}
-		}
-	}
-}
-
-func printResult(embedding, v []float32, text string) {
-	dx := search.Cosine(embedding, v)
-	switch {
-	case dx >= 0.85:
-		fmt.Printf(" ✅ %s (%.0f%%)\n", text, math.Round(dx*100))
-	case dx >= 0.5:
-		fmt.Printf(" ❔ %s (%.0f%%)\n", text, math.Round(dx*100))
-	default:
-		fmt.Printf(" ❌ %s (%.0f%%)\n", text, math.Round(dx*100))
-	}
 }
 
 type entry struct {
