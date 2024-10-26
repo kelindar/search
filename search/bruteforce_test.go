@@ -10,7 +10,7 @@ import (
 
 /*
 cpu: 13th Gen Intel(R) Core(TM) i7-13700K
-BenchmarkBruteForce-24    	    4209	    295092 ns/op	     720 B/op	       4 allocs/op
+BenchmarkBruteForce-24    	    4278	    286199 ns/op	     744 B/op	       5 allocs/op
 */
 func BenchmarkBruteForce(b *testing.B) {
 	data, err := loadDataset()

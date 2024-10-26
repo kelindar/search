@@ -32,9 +32,7 @@ func loadModel() *llm.Model {
 
 func main() {
 	// mainEval()
-	//mainSearchHNSW()
-	mainSearchBrute()
-	//mainSearchLSH()
+	mainSearch()
 }
 
 func mainEval() {
@@ -90,7 +88,7 @@ type embedding struct {
 	Text   string
 }
 
-func mainSearchBrute() {
+func mainSearch() {
 
 	// Load your language model
 	llm := loadModel()
@@ -119,150 +117,12 @@ func mainSearchBrute() {
 			embedding, _ := llm.EmbedText(query)
 
 			start := time.Now()
-			results := g.Search(embedding, 50)
+			results := g.Search(embedding, 10)
 
 			// Print the results
 			fmt.Printf("found %d results (%v)\n", len(results), time.Since(start))
-			for i, v := range results {
+			for _, v := range results {
 				printResult(embedding, v.Vector, v.Value)
-				if i >= 10 {
-					break
-				}
-			}
-		}
-	}
-}
-
-func mainSearchHNSW() {
-
-	// Load your language model
-	llm := loadModel()
-	defer llm.Close()
-
-	g := search.NewGraph[int]()
-	b := search.NewBag[string](384)
-
-	// Embed the sentences and calculate similarities
-
-	corpus := make([]embedding, 0, 10000)
-	data, _ := loadSICK()
-	for i, v := range data {
-		text := strings.TrimSpace(v.Pair[0])
-		vector, _ := llm.EmbedText(text)
-		g.Add(search.MakeNode(i, vector))
-		b.Add(vector, text)
-		corpus = append(corpus, embedding{
-			Vector: vector,
-			Text:   text,
-		})
-	}
-
-	r := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Printf("Enter a sentence to search (or 'exit' to quit): ")
-		query, _ := r.ReadString('\n')
-		query = strings.TrimSpace(query)
-
-		switch q := strings.TrimSpace(query); q {
-		case "exit", "quit", "q", "bye", "":
-			return
-		default:
-			embedding, _ := llm.EmbedText(query)
-
-			start := time.Now()
-			results := g.Search(embedding, 50)
-
-			// Sort the results by similarity to the query
-			sort.Slice(results, func(i, j int) bool {
-				return search.Cosine(results[i].Value, embedding) > search.Cosine(results[j].Value, embedding)
-			})
-
-			// Print the results
-			fmt.Printf("found %d results (%v)\n", len(results), time.Since(start))
-			for i, v := range results {
-				printResult(embedding, v.Value, corpus[v.Key].Text)
-				if i >= 10 {
-					break
-				}
-			}
-
-			// Print the truth
-			truth := b.Search(embedding, 50)
-			fmt.Println("exact results:", len(truth))
-			for i, v := range truth {
-				printResult(embedding, v.Vector, v.Value)
-				if i >= 10 {
-					break
-				}
-			}
-		}
-	}
-}
-
-func mainSearchLSH() {
-
-	// Load your language model
-	llm := loadModel()
-	defer llm.Close()
-
-	lsh := search.NewLSH[*embedding](10000, 384)
-	b := search.NewBag[string](384)
-
-	// Embed the sentences and calculate similarities
-	data, _ := loadSICK()
-	uniq := make(map[string]struct{})
-	for _, v := range data {
-		text := strings.TrimSpace(v.Pair[0])
-		if _, ok := uniq[text]; ok {
-			continue
-		}
-
-		uniq[text] = struct{}{}
-		vector, _ := llm.EmbedText(text)
-		b.Add(vector, text)
-		lsh.Add(vector, &embedding{
-			Vector: vector,
-			Text:   text,
-		})
-	}
-
-	r := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Printf("Enter a sentence to search (or 'exit' to quit): ")
-		query, _ := r.ReadString('\n')
-		query = strings.TrimSpace(query)
-
-		switch q := strings.TrimSpace(query); q {
-		case "exit", "quit", "q", "bye", "":
-			return
-		default:
-			embedding, _ := llm.EmbedText(query)
-
-			start := time.Now()
-			results := lsh.Query(embedding)
-
-			// Sort the results by similarity to the query
-			sort.Slice(results, func(i, j int) bool {
-				return search.Cosine(results[i].Vector, embedding) > search.Cosine(results[j].Vector, embedding)
-			})
-
-			// Print the results
-			fmt.Printf("found %d results (%v)\n", len(results), time.Since(start))
-			for i, v := range results {
-				printResult(embedding, v.Vector, v.Text)
-				if i >= 10 {
-					break
-				}
-			}
-
-			// Print the truth
-			truth := b.Search(embedding, 50)
-			fmt.Println("exact results:", len(truth))
-			for i, v := range truth {
-				printResult(embedding, v.Vector, v.Value)
-				if i >= 10 {
-					break
-				}
 			}
 		}
 	}
