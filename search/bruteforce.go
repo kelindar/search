@@ -1,7 +1,6 @@
 package search
 
 import (
-	"iter"
 	"sort"
 )
 
@@ -38,18 +37,7 @@ func (b *Index[T]) Add(vx Vector, item T) {
 }
 
 // Search searches the index for the k-nearest neighbors of the query vector.
-func (b *Index[T]) Search(query Vector, k int) iter.Seq2[float64, T] {
-	return func(yield func(float64, T) bool) {
-		for _, r := range b.search(query, k) {
-			if !yield(r.Relevance, r.Value) {
-				break
-			}
-		}
-	}
-}
-
-// Search implements a brute-force search algorithm to find the k-nearest neighbors
-func (b *Index[T]) search(query Vector, k int) []Result[T] {
+func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 	if k <= 0 {
 		return nil
 	}

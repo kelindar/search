@@ -50,14 +50,14 @@ func main() {
 
 			// Print the results
 			fmt.Printf("results found (elapsed=%v) :\n", time.Since(start))
-			for relevance, text := range results {
+			for _, r := range results {
 				switch {
-				case relevance >= 0.85:
-					fmt.Printf(" ✅ %s (%.0f%%)\n", text, math.Round(relevance*100))
-				case relevance >= 0.5:
-					fmt.Printf(" ❔ %s (%.0f%%)\n", text, math.Round(relevance*100))
+				case r.Relevance >= 0.85:
+					fmt.Printf(" ✅ %s (%.0f%%)\n", r.Value, math.Round(r.Relevance*100))
+				case r.Relevance >= 0.5:
+					fmt.Printf(" ❔ %s (%.0f%%)\n", r.Value, math.Round(r.Relevance*100))
 				default:
-					fmt.Printf(" ❌ %s (%.0f%%)\n", text, math.Round(relevance*100))
+					fmt.Printf(" ❌ %s (%.0f%%)\n", r.Value, math.Round(r.Relevance*100))
 				}
 			}
 		}
