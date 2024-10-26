@@ -1,240 +1,347 @@
 package hnsw
 
 import (
-	"encoding/binary"
-	"fmt"
-	"math"
-	"os"
-	"runtime"
-	"sync"
-	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-var prefix = "siftsmall/siftsmall"
-var dataSize = 10000
-var efSearch = []int{1, 2, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 300, 400}
-var queries []Point
-var truth [][]uint32
-
-func TestMain(m *testing.M) {
-	// LOAD QUERIES AND GROUNDTRUTH
-	fmt.Printf("Loading query records\n")
-	queries, truth = loadQueriesFromFvec(prefix)
-	os.Exit(m.Run())
-}
-func TestSaveLoad(t *testing.T) {
-	h := buildIndex()
-	testSearch(h)
-
-	fmt.Printf("Saving to index.dat\n")
-	err := h.Save("index.dat")
-	assert.Nil(t, err)
-
-	fmt.Printf("Loading from index.dat\n")
-	h2, timestamp, err := Load("index.dat")
-	assert.Nil(t, err)
-
-	fmt.Printf("Index loaded, time saved was %v", time.Unix(timestamp, 0))
-
-	fmt.Printf(h2.Stats())
-	testSearch(h2)
-}
-
-func TestSIFT(t *testing.T) {
-	h := buildIndex()
-	testSearch(h)
-}
-
-func buildIndex() *Hnsw {
-	// BUILD INDEX
-	var p Point
-	p = make([]float32, 128)
-	h := New(4, 200, p)
-	h.DelaunayType = 1
-	h.Grow(dataSize)
-
-	buildStart := time.Now()
-	fmt.Printf("Loading data and building index\n")
-	points := make(chan job)
-	go loadDataFromFvec(prefix, points)
-	buildFromChan(h, points)
-	buildStop := time.Since(buildStart)
-	fmt.Printf("Index build in %v\n", buildStop)
-	fmt.Printf(h.Stats())
-
-	return h
-}
-
-func testSearch(h *Hnsw) {
-	// SEARCH
-	for _, ef := range efSearch {
-		fmt.Printf("Now searching with ef=%v\n", ef)
-		bestPrecision := 0.0
-		bestTime := 999.0
-		for i := 0; i < 10; i++ {
-			start := time.Now()
-			p := search(h, queries, truth, ef)
-			stop := time.Since(start)
-			bestPrecision = math.Max(bestPrecision, p)
-			bestTime = math.Min(bestTime, stop.Seconds()/float64(len(queries)))
-		}
-		fmt.Printf("Best Precision 10-NN: %v\n", bestPrecision)
-		fmt.Printf("Best time: %v s (%v queries / s)\n", bestTime, 1/bestTime)
+// TestHNSW_AddNode tests adding nodes to the HNSW index.
+func TestHNSW_AddNode(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialNodes  int
+		vectorsToAdd  [][]float32
+		expectedCount int
+	}{
+		{
+			name:          "Add single node",
+			initialNodes:  0,
+			vectorsToAdd:  [][]float32{{1, 0, 0}},
+			expectedCount: 1,
+		},
+		{
+			name:          "Add multiple nodes",
+			initialNodes:  0,
+			vectorsToAdd:  [][]float32{{1, 0, 0}, {0, 1, 0}, {0, 0, 1}},
+			expectedCount: 3,
+		},
+		{
+			name:          "Add duplicate nodes",
+			initialNodes:  0,
+			vectorsToAdd:  [][]float32{{1, 1, 1}, {1, 1, 1}},
+			expectedCount: 2,
+		},
+		{
+			name:          "Add nodes to existing index",
+			initialNodes:  2,
+			vectorsToAdd:  [][]float32{{1, 0, 0}, {0, 1, 0}},
+			expectedCount: 4,
+		},
 	}
-}
 
-type job struct {
-	p  Point
-	id uint32
-}
-
-func buildFromChan(h *Hnsw, points chan job) {
-	var wg sync.WaitGroup
-	for i := 0; i < runtime.NumCPU(); i++ {
-		wg.Add(1)
-		go func() {
-			for {
-				job, more := <-points
-				if !more {
-					wg.Done()
-					return
-				}
-				h.Add(job.p, job.id)
+	for _, tt := range tests {
+		tt := tt // capture range variable
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewHNSW(5, 10)
+			// Pre-populate nodes if initialNodes > 0
+			for i := 0; i < tt.initialNodes; i++ {
+				h.AddNode([]float32{float32(i), float32(i + 1), float32(i + 2)})
 			}
-		}()
+			// Add new nodes
+			for _, vec := range tt.vectorsToAdd {
+				h.AddNode(vec)
+			}
+			assert.Equal(t, tt.expectedCount, len(h.nodes), "Number of nodes should be %d", tt.expectedCount)
+		})
 	}
-	wg.Wait()
 }
 
-func search(h *Hnsw, queries []Point, truth [][]uint32, efSearch int) float64 {
-	var p int32
-	var wg sync.WaitGroup
-	l := runtime.NumCPU()
-	b := len(queries) / l
+// TestHNSW_BuildIndex tests building the HNSW index.
+func TestHNSW_BuildIndex(t *testing.T) {
+	tests := []struct {
+		name          string
+		vectors       [][]float32
+		M             int
+		expectedConns []struct{ Node, ConnectedTo int }
+	}{
+		{
+			name:    "Empty index",
+			vectors: [][]float32{},
+			M:       5,
+			// No connections expected
+			expectedConns: []struct{ Node, ConnectedTo int }{},
+		},
+		{
+			name: "Single node",
+			vectors: [][]float32{
+				{1, 0, 0},
+			},
+			M: 5,
+			// No connections expected since there's only one node
+			expectedConns: []struct{ Node, ConnectedTo int }{},
+		},
+		{
+			name: "Two nodes",
+			vectors: [][]float32{
+				{1, 0, 0},
+				{0, 1, 0},
+			},
+			M: 1,
+			expectedConns: []struct{ Node, ConnectedTo int }{
+				{0, 1},
+				{1, 0},
+			},
+		},
+		{
+			name: "Multiple nodes",
+			vectors: [][]float32{
+				{1, 0, 0}, // 0
+				{0, 1, 0}, // 1
+				{0, 0, 1}, // 2
+				{1, 1, 0}, // 3
+				{1, 0, 1}, // 4
+				{0, 1, 1}, // 5
+				{1, 1, 1}, // 6
+			},
+			M: 2,
+			// Exact connections depend on searchKNN implementation; we'll check that each node has <= M connections
+			expectedConns: []struct{ Node, ConnectedTo int }{},
+		},
+	}
 
-	for i := 0; i < runtime.NumCPU(); i++ {
-		wg.Add(1)
-		go func(queries []Point, truth [][]uint32) {
-			for j := range queries {
-				results := h.Search(queries[j], efSearch, 10)
-				// calc 10-NN precision
-				for results.Len() > 10 {
-					results.Pop()
-				}
-				for _, item := range results.Items() {
-					for k := 0; k < 10; k++ {
-						// !!! Our index numbers starts from 1
-						if int32(truth[j][k]) == int32(item.ID)-1 {
-							atomic.AddInt32(&p, 1)
-						}
+	for _, tt := range tests {
+		tt := tt // capture range variable
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewHNSW(tt.M, 10)
+			for _, vec := range tt.vectors {
+				h.AddNode(vec)
+			}
+			h.BuildIndex()
+
+			if len(tt.expectedConns) > 0 {
+				for _, conn := range tt.expectedConns {
+					if conn.Node >= len(h.nodes) || conn.ConnectedTo >= len(h.nodes) {
+						t.Errorf("Invalid node indices: %d connected to %d", conn.Node, conn.ConnectedTo)
+						continue
 					}
+					assert.Contains(t, h.nodes[conn.Node].neighbors, conn.ConnectedTo, "Node %d should be connected to %d", conn.Node, conn.ConnectedTo)
+				}
+			} else {
+				// For multiple nodes, ensure each node has at most M neighbors
+				for i, node := range h.nodes {
+					assert.LessOrEqual(t, len(node.neighbors), tt.M, "Node %d should have at most %d neighbors", i, tt.M)
 				}
 			}
-			wg.Done()
-		}(queries[i*b:i*b+b], truth[i*b:i*b+b])
+		})
 	}
-	wg.Wait()
-	return (float64(p) / float64(10*b*l))
 }
 
-func readFloat32(f *os.File) (float32, error) {
-	bs := make([]byte, 4)
-	_, err := f.Read(bs)
-	return float32(math.Float32frombits(binary.LittleEndian.Uint32(bs))), err
+// TestHNSW_Search tests the search functionality.
+func TestHNSW_Search(t *testing.T) {
+	tests := []struct {
+		name          string
+		vectors       [][]float32
+		M             int
+		query         []float32
+		k             int
+		expectedCount int
+		expectError   bool
+	}{
+		{
+			name:          "Empty index",
+			vectors:       [][]float32{},
+			M:             5,
+			query:         []float32{1, 0, 0},
+			k:             3,
+			expectedCount: 0,
+			expectError:   true,
+		},
+		{
+			name: "Single node search",
+			vectors: [][]float32{
+				{1, 0, 0},
+			},
+			M:             5,
+			query:         []float32{1, 0, 0},
+			k:             1,
+			expectedCount: 1,
+			expectError:   false,
+		},
+		{
+			name: "Search with k greater than nodes",
+			vectors: [][]float32{
+				{1, 0, 0},
+				{0, 1, 0},
+			},
+			M:             1,
+			query:         []float32{1, 1, 0},
+			k:             5,
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
+			name: "Exact match search",
+			vectors: [][]float32{
+				{1, 0, 0},
+				{0, 1, 0},
+				{0, 0, 1},
+			},
+			M:             2,
+			query:         []float32{0, 1, 0},
+			k:             1,
+			expectedCount: 1,
+			expectError:   false,
+		},
+		{
+			name: "Search with multiple nearest neighbors",
+			vectors: [][]float32{
+				{1, 0, 0}, // 0
+				{0, 1, 0}, // 1
+				{0, 0, 1}, // 2
+				{1, 1, 0}, // 3
+				{1, 0, 1}, // 4
+				{0, 1, 1}, // 5
+				{1, 1, 1}, // 6
+			},
+			M:             3,
+			query:         []float32{1, 0.5, 0.5},
+			k:             3,
+			expectedCount: 3,
+			expectError:   false,
+		},
+		{
+			name: "Search with zero vector query",
+			vectors: [][]float32{
+				{1, 0, 0},
+				{0, 1, 0},
+				{0, 0, 1},
+			},
+			M:           2,
+			query:       []float32{0, 0, 0},
+			k:           2,
+			expectError: true,
+		},
+		{
+			name: "Search with negative components",
+			vectors: [][]float32{
+				{1, -1, 0}, // 0
+				{-1, 1, 0}, // 1
+				{0, 0, 1},  // 2
+			},
+			M:             2,
+			query:         []float32{1, -1, 0},
+			k:             2,
+			expectedCount: 2,
+			expectError:   false,
+		},
+		{
+			name: "High dimensional vectors",
+			vectors: func() [][]float32 {
+				vectors := make([][]float32, 100)
+				for i := 0; i < 100; i++ {
+					vec := make([]float32, 128)
+					for j := 0; j < 128; j++ {
+						vec[j] = float32(i + j)
+					}
+					vectors[i] = vec
+				}
+				return vectors
+			}(),
+			M: 10,
+			query: func() []float32 {
+				vec := make([]float32, 128)
+				for j := 0; j < 128; j++ {
+					vec[j] = float32(50 + j)
+				}
+				return vec
+			}(),
+			k:             5,
+			expectedCount: 5,
+			expectError:   false,
+		},
+		{
+			name: "Duplicate vectors",
+			vectors: [][]float32{
+				{1, 1, 1}, // 0
+				{1, 1, 1}, // 1
+				{0, 0, 1}, // 2
+			},
+			M:             2,
+			query:         []float32{1, 1, 1},
+			k:             2,
+			expectedCount: 2,
+			expectError:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt // capture range variable
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewHNSW(tt.M, 10)
+			for _, vec := range tt.vectors {
+				h.AddNode(vec)
+			}
+			h.BuildIndex()
+
+			neighbors, err := h.Search(tt.query, tt.k)
+			if tt.expectError {
+				assert.Error(t, err, "Expected an error but got none")
+			} else {
+				assert.NoError(t, err, "Did not expect an error but got one")
+				assert.Len(t, neighbors, tt.expectedCount, "Expected %d neighbors, got %d", tt.expectedCount, len(neighbors))
+			}
+		})
+	}
 }
 
-func readUint32(f *os.File) (uint32, error) {
-	bs := make([]byte, 4)
-	_, err := f.Read(bs)
-	return binary.LittleEndian.Uint32(bs), err
-}
+// TestHNSW_SearchResults tests the actual correctness of search results.
+func TestHNSW_SearchResults(t *testing.T) {
+	h := NewHNSW(3, 10)
+	vectors := [][]float32{
+		{1, 0, 0}, // Index 0
+		{0, 1, 0}, // Index 1
+		{0, 0, 1}, // Index 2
+		{1, 1, 0}, // Index 3
+		{1, 0, 1}, // Index 4
+		{0, 1, 1}, // Index 5
+		{1, 1, 1}, // Index 6
+	}
+	for _, vec := range vectors {
+		h.AddNode(vec)
+	}
+	h.BuildIndex()
 
-func loadQueriesFromFvec(prefix string) (queries []Point, truth [][]uint32) {
-	f2, err := os.Open(prefix + "_query.fvecs")
-	if err != nil {
-		panic("couldn't open query data file")
-	}
-	defer f2.Close()
-	queries = make([]Point, 10000)
-	qcount := 0
-	for {
-		d, err := readUint32(f2)
-		if err != nil {
-			break
-		}
-		if d != 128 {
-			panic("Wrong dimension for this test...")
-		}
-		queries[qcount] = make([]float32, 128)
-		for i := 0; i < int(d); i++ {
-			queries[qcount][i], err = readFloat32(f2)
-		}
-		qcount++
-	}
-	queries = queries[0:qcount] // resize it
-	fmt.Printf("Read %v query records\n", qcount)
-	fmt.Printf("Loading groundtruth\n")
-	// load query Vectors
-	f3, err := os.Open(prefix + "_groundtruth.ivecs")
-	if err != nil {
-		panic("couldn't open groundtruth data file")
-	}
-	defer f3.Close()
-	truth = make([][]uint32, 10000)
-	tcount := 0
-	for {
-		d, err := readUint32(f3)
-		if err != nil {
-			break
-		}
-		if d != 100 {
-			panic("Wrong dimension for this test...")
-		}
-		vec := make([]uint32, d)
-		for i := 0; i < int(d); i++ {
-			vec[i], err = readUint32(f3)
-		}
-		truth[tcount] = vec
-		tcount++
-	}
-	fmt.Printf("Read %v truth records\n", tcount)
-
-	if tcount != qcount {
-		panic("Count mismatch queries <-> groundtruth")
+	tests := []struct {
+		name            string
+		query           []float32
+		k               int
+		expectedIndices []int
+	}{
+		{
+			name:            "Query close to index 0",
+			query:           []float32{1, 0, 0},
+			k:               1,
+			expectedIndices: []int{0},
+		},
+		{
+			name:            "Query close to index 6",
+			query:           []float32{1, 1, 1},
+			k:               3,
+			expectedIndices: []int{6, 3, 5}, // Expected closest to (1,1,1)
+		},
 	}
 
-	return queries, truth
-}
-
-func loadDataFromFvec(prefix string, points chan job) {
-	f, err := os.Open(prefix + "_base.fvecs")
-	if err != nil {
-		panic("couldn't open data file")
+	for _, tt := range tests {
+		tt := tt // capture range variable
+		t.Run(tt.name, func(t *testing.T) {
+			neighbors, err := h.Search(tt.query, tt.k)
+			assert.NoError(t, err, "Search should not return an error")
+			assert.Len(t, neighbors, len(tt.expectedIndices), "Number of neighbors returned should be %d", len(tt.expectedIndices))
+			// Check if expected indices are in the result
+			for _, expected := range tt.expectedIndices {
+				assert.Contains(t, neighbors, expected, "Expected neighbor %d to be in the search results", expected)
+			}
+		})
 	}
-	defer f.Close()
-	count := 1
-	for {
-		d, err := readUint32(f)
-		if err != nil {
-			break
-		}
-		if d != 128 {
-			panic("Wrong dimension for this test...")
-		}
-		var vec Point
-		vec = make([]float32, 128)
-		for i := 0; i < int(d); i++ {
-			vec[i], err = readFloat32(f)
-		}
-		points <- job{p: vec, id: uint32(count)}
-		count++
-		if count%1000 == 0 {
-			fmt.Printf("Read %v records\n", count)
-		}
-	}
-	close(points)
 }

@@ -8,48 +8,6 @@ import (
 )
 
 func main() {
-	//exampleCompleteText()
-	exampleEmbedText()
-}
-
-func exampleCompleteText() {
-	m, err := llm.New("../dist/Llama-3.2-1B-Instruct-Q6_K_L.gguf", 0)
-	//m, err := llm.New("../dist/MiniLM-L6-v2.Q4_K_M.gguf", 0)
-	if err != nil {
-		panic(err)
-	}
-
-	defer m.Close()
-
-	ctx := m.Context(0)
-	defer ctx.Close()
-
-	template := `### System:
-	You are a character in an adventure game.
-
-	### Instruction:
-	%s
-
-	### Response (10 words, engaging, natural, authentic, descriptive, creative):
-	`
-
-	for {
-		var input string
-		fmt.Printf("\n >> ")
-		fmt.Scanln(&input)
-
-		text := fmt.Sprintf(template, input)
-		out, err := ctx.CompleteText(text, 2048)
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Println(out)
-	}
-
-}
-
-func exampleEmbedText() {
 	m, err := llm.New("../dist/MiniLM-L6-v2.Q4_K_M.gguf", 0)
 	//m, err = llm.New("../dist/e5-small-v2.Q4_K_M.gguf", 0)
 	//m, err := llm.New("../dist/e5-base-v2.Q5_K_M.gguf", 0)

@@ -2,19 +2,15 @@ package llm
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 )
 
 // Model represents a loaded LLM/Embedding model.
 type Model struct {
-	handle uintptr
-	n_embd int32
-}
-
-type Context struct {
-	parent *Model
-	handle uintptr
-	tokens atomic.Uint64
+	handle  uintptr
+	n_embd  int32
+	ctxpool sync.Pool
 }
 
 // New creates a new  model from the given model file.
@@ -24,10 +20,16 @@ func New(modelPath string, gpuLayers int) (*Model, error) {
 		return nil, fmt.Errorf("failed to load model (%s)", modelPath)
 	}
 
-	return &Model{
+	model := &Model{
 		handle: handle,
 		n_embd: embed_size(handle),
-	}, nil
+	}
+
+	// Initialize the context pool to reduce allocations
+	model.ctxpool.New = func() any {
+		return model.Context(0)
+	}
+	return model, nil
 }
 
 // Close closes the model and releases any resources associated with it.
@@ -41,21 +43,14 @@ func (m *Model) Close() error {
 func (m *Model) Context(size int) *Context {
 	return &Context{
 		parent: m,
-		handle: load_context(m.handle, uint32(size), false),
+		handle: load_context(m.handle, uint32(size), true),
 	}
 }
 
 // EmbedText embeds the given text using the model.
 func (m *Model) EmbedText(text string) ([]float32, error) {
-	//ctx := m.Context(0)
-	//defer ctx.Close()
-
-	ctx := &Context{
-		parent: m,
-		handle: load_context(m.handle, 0, true),
-	}
-	defer ctx.Close()
-
+	ctx := m.ctxpool.Get().(*Context)
+	defer m.ctxpool.Put(ctx)
 	return ctx.EmbedText(text)
 }
 
@@ -67,6 +62,12 @@ func (ctx *Context) Close() error {
 }
 
 // --------------------------------- Context ---------------------------------
+
+type Context struct {
+	parent *Model
+	handle uintptr
+	tokens atomic.Uint64
+}
 
 // Tokens returns the number of tokens processed by the context.
 func (ctx *Context) Tokens() uint {
@@ -97,30 +98,5 @@ func (ctx *Context) EmbedText(text string) ([]float32, error) {
 		return nil, fmt.Errorf("failed to decode/encode text")
 	default:
 		return nil, fmt.Errorf("failed to embed text (code=%d)", ret)
-	}
-}
-
-func (ctx *Context) CompleteText(text string, n int) (string, error) {
-	switch {
-	case ctx.handle == 0 || ctx.parent.handle == 0:
-		return "", fmt.Errorf("context is not initialized")
-	}
-
-	// align to the closest page of 512
-	out := make([]byte, (n+511)&^511)
-	ret := complete_text(ctx.handle, text, out, uint32(len(out)), uint32(n))
-	switch ret {
-	case 0:
-		return string(out), nil
-	case 1:
-		return "", fmt.Errorf("failed to complete text")
-	case 2:
-		return "", fmt.Errorf("failed to evaluate initial prompt")
-	case 3:
-		return "", fmt.Errorf("failed to generate text")
-	case 4:
-		return "", fmt.Errorf("output buffer is too small (%d)", len(out))
-	default:
-		return "", fmt.Errorf("failed to complete text (code=%d)", ret)
 	}
 }

@@ -20,7 +20,6 @@ var free_model func(model uintptr)
 var free_context func(ctx uintptr)
 var embed_size func(model uintptr) int32
 var embed_text func(model uintptr, text string, out_embeddings []float32, out_tokens *uint32) int
-var complete_text func(ctx uintptr, text string, out_text []byte, max_output_length uint32, n_predict uint32) int
 
 func init() {
 	libpath, err := findLlama()
@@ -39,10 +38,9 @@ func init() {
 	purego.RegisterLibFunc(&free_context, libptr, "free_context")
 	purego.RegisterLibFunc(&embed_size, libptr, "embed_size")
 	purego.RegisterLibFunc(&embed_text, libptr, "embed_text")
-	purego.RegisterLibFunc(&complete_text, libptr, "complete_text")
 
-	// Initialize the library
-	load_library(2) // Log level WARN
+	// Initialize the library (Log level WARN)
+	load_library(2)
 }
 
 // --------------------------------- Library Lookup ---------------------------------

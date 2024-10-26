@@ -9,7 +9,7 @@ import (
 )
 
 /*
-BenchmarkLLM/encode-24		444	   2708159 ns/op	18.00 tok/s		2024 B/op		11 allocs/op
+BenchmarkLLM/encode-24         	     400	   2641772 ns/op	        18.00 tok/s	    2024 B/op	      11 allocs/op
 */
 func BenchmarkLLM(b *testing.B) {
 	llm := loadModel()
@@ -17,14 +17,11 @@ func BenchmarkLLM(b *testing.B) {
 
 	text := "This is a test sentence we are going to generate embeddings for."
 	b.Run("encode", func(b *testing.B) {
-		///ctx := llm.Context(0)
 		for i := 0; i < b.N; i++ {
-			//_, err := ctx.EmbedText(text)
 			_, err := llm.EmbedText(text)
 			assert.NoError(b, err)
 		}
 
-		//b.ReportMetric(float64(ctx.Tokens())/float64(b.N), "tok/s")
 	})
 }
 
