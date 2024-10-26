@@ -1,39 +1,10 @@
-package hnsw
+package search
 
 import (
 	"container/heap"
 	"errors"
 	"math"
 )
-
-// ----------------- Cosine Distance Function -----------------
-
-// CosineDistance computes the cosine distance between two normalized vectors.
-// Returns 1.0 if vectors have different lengths or if either is a zero vector.
-func CosineDistance(a, b []float32) float32 {
-	if len(a) != len(b) {
-		return 1.0
-	}
-
-	var dot float32
-	for i := 0; i < len(a); i++ {
-		dot += a[i] * b[i]
-	}
-
-	// Check if both vectors are normalized (norm ≈ 1)
-	// If not, treat as zero vectors to maintain consistency
-	var normA, normB float32
-	for i := 0; i < len(a); i++ {
-		normA += a[i] * a[i]
-		normB += b[i] * b[i]
-	}
-
-	if math.Abs(float64(normA-1.0)) > 1e-4 || math.Abs(float64(normB-1.0)) > 1e-4 {
-		return 1.0 // At least one vector was not normalized
-	}
-
-	return 1.0 - dot
-}
 
 // ----------------- Priority Queue for Search -----------------
 
@@ -166,7 +137,7 @@ func (h *HNSW) searchKNN(query []float32, k int, exclude int) []int {
 		if i == exclude {
 			continue
 		}
-		dist := CosineDistance(query, node.vector)
+		dist := cosineDistance(query, node.vector)
 		if pq.Len() < k {
 			heap.Push(pq, Item{nodeIndex: i, distance: dist})
 		} else if dist < (*pq)[0].distance {

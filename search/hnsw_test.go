@@ -1,4 +1,4 @@
-package hnsw
+package search
 
 import (
 	"testing"
