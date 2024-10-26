@@ -94,7 +94,7 @@ func mainSearch() {
 	llm := loadModel()
 	defer llm.Close()
 
-	g := search.NewBag[string](384)
+	g := search.NewExact[string]()
 
 	// Embed the sentences and calculate similarities
 	data, _ := loadSICK()

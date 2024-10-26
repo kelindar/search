@@ -16,7 +16,7 @@ func BenchmarkBruteForce(b *testing.B) {
 	data, err := loadDataset()
 	assert.NoError(b, err)
 
-	bag := NewBag[string](384)
+	bag := NewExact[string]()
 	for _, entry := range data {
 		bag.Add(entry.Vector, entry.Label)
 	}

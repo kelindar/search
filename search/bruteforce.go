@@ -1,36 +1,36 @@
 package search
 
 import (
-	"cmp"
 	"sort"
 )
 
-type entry[T cmp.Ordered] struct {
+type entry[T any] struct {
 	Vector []float32
 	Value  T
 }
 
-type Result[T cmp.Ordered] struct {
+type Result[T any] struct {
 	entry[T]
 	Relevance float64 // The relevance of the result
 }
 
-type Bag[T cmp.Ordered] struct {
+type Bag[T any] struct {
 	arr []entry[T]
 	dim int
 }
 
-func NewBag[T cmp.Ordered](dim int) *Bag[T] {
+// NewExact creates a new exact search index.
+func NewExact[T any]() *Bag[T] {
 	return &Bag[T]{
 		arr: make([]entry[T], 0),
-		dim: dim,
 	}
 }
 
-func (b *Bag[T]) Add(vx Vector, data T) {
+// Add adds a new vector to the search index.
+func (b *Bag[T]) Add(vx Vector, item T) {
 	b.arr = append(b.arr, entry[T]{
 		Vector: vx,
-		Value:  data,
+		Value:  item,
 	})
 }
 
@@ -67,7 +67,7 @@ func (b *Bag[T]) Search(query Vector, k int) []Result[T] {
 // --------------------------------- Heap ---------------------------------
 
 // minheap is a min-heap of top values, ordered by relevance.
-type minheap[T cmp.Ordered] []Result[T]
+type minheap[T any] []Result[T]
 
 // Reset resets the minheap to an empty state.
 func (h *minheap[T]) Reset() {
