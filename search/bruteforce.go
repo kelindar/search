@@ -18,7 +18,6 @@ type Result[T any] struct {
 // Index represents a brute-force search index, returning exact results.
 type Index[T any] struct {
 	arr []entry[T]
-	dim int
 }
 
 // NewIndex creates a new exact search index.
@@ -42,7 +41,7 @@ func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 		return nil
 	}
 
-	var h minheap[T]
+	dst := make(minheap[T], 0, k)
 	for _, v := range b.arr {
 		relevance := Cosine(v.Vector, query)
 		result := Result[T]{
@@ -53,28 +52,23 @@ func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 		// If the heap is not full, add the result, otherwise replace
 		// the minimum element
 		switch {
-		case h.Len() < k:
-			h.Push(result)
-		case relevance > h[0].Relevance:
-			h.Pop()
-			h.Push(result)
+		case dst.Len() < k:
+			dst.Push(result)
+		case relevance > dst[0].Relevance:
+			dst.Pop()
+			dst.Push(result)
 		}
 	}
 
 	// Sort the results by relevance
-	sort.Sort(&h)
-	return h
+	sort.Sort(&dst)
+	return dst
 }
 
 // --------------------------------- Heap ---------------------------------
 
 // minheap is a min-heap of top values, ordered by relevance.
 type minheap[T any] []Result[T]
-
-// Reset resets the minheap to an empty state.
-func (h *minheap[T]) Reset() {
-	*h = (*h)[:0]
-}
 
 // Len, Less, Swap implement the sort.Interface.
 func (h *minheap[T]) Len() int           { return len(*h) }

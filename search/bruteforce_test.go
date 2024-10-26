@@ -10,24 +10,25 @@ import (
 
 /*
 cpu: 13th Gen Intel(R) Core(TM) i7-13700K
-BenchmarkBruteForce-24    	    4123	    301825 ns/op	     744 B/op	       5 allocs/op
+BenchmarkIndex/search-24        	    4401	    265430 ns/op	     264 B/op	       2 allocs/op
 */
-func BenchmarkBruteForce(b *testing.B) {
+func BenchmarkIndex(b *testing.B) {
 	data, err := loadDataset()
 	assert.NoError(b, err)
 
-	bag := NewIndex[string]()
+	index := NewIndex[string]()
 	for _, entry := range data {
-		bag.Add(entry.Vector, entry.Pair[0])
+		index.Add(entry.Vector, entry.Pair[0])
 	}
 
-	b.ReportAllocs()
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		for _, v := range bag.Search(data[i%1000].Vector, 5) {
-			_ = v
+	b.Run("search", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = index.Search(data[i%1000].Vector, 5)
 		}
-	}
+	})
+
 }
 
 func TestIndex(t *testing.T) {
