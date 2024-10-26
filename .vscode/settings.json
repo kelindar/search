@@ -1,0 +1,14 @@
+{
+    "files.exclude": {
+        ".github": true,
+        ".golangci.yml": true,
+        ".gitignore": true,
+        ".gitattributes": true,
+        ".gitmodules": true,
+        "*.sum": true,
+        ".air.toml": true,
+        ".vscode": true,
+        "llama.cpp": true,
+        "CMakeLists.txt": false,
+    }
+}
