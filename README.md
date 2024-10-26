@@ -1,5 +1,7 @@
 # Go Embeddings with llama.cpp
 
+![demo](./.github/demo.gif)
+
 ## Precompiled binaries
 
 Precompiled binaries for Windows and Linux are available in the [dist](dist) directory. If the architecture/platform you are using is not available, you would need to compile the library yourself.
