@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"fmt"
 	"log"
@@ -9,9 +10,11 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kelindar/llm"
+	"github.com/kelindar/llm/search"
 )
 
 func loadModel() *llm.Model {
@@ -28,6 +31,11 @@ func loadModel() *llm.Model {
 }
 
 func main() {
+	// mainEval()
+	mainSearch()
+}
+
+func mainEval() {
 	data, _ := loadSICK()
 
 	// Create slices to store predicted and human scores
@@ -73,6 +81,72 @@ func main() {
 	}
 
 	fmt.Printf("✅ Pearson correlation: %.4f, MSE: %.4f\n", pearson, mse)
+}
+
+type embedding struct {
+	Vector []float32
+	Text   string
+}
+
+func mainSearch() {
+
+	// Load your language model
+	llm := loadModel()
+	defer llm.Close()
+
+	lsh := search.NewLSH[*embedding](10000, 384)
+
+	// Embed the sentences and calculate similarities
+	data, _ := loadSICK()
+	uniq := make(map[string]struct{})
+	for _, v := range data {
+		text := strings.TrimSpace(v.Pair[0])
+		if _, ok := uniq[text]; ok {
+			continue
+		}
+
+		uniq[text] = struct{}{}
+		vector, _ := llm.EmbedText(text)
+		lsh.Add(vector, &embedding{
+			Vector: vector,
+			Text:   text,
+		})
+	}
+
+	r := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Printf("Enter a sentence to search (or 'exit' to quit): ")
+		query, _ := r.ReadString('\n')
+		query = strings.TrimSpace(query)
+
+		switch q := strings.TrimSpace(query); q {
+		case "exit", "quit", "q", "bye", "":
+			return
+		default:
+			embedding, _ := llm.EmbedText(query)
+			results := lsh.Query(embedding)
+
+			// Sort the results by similarity to the query
+			sort.Slice(results, func(i, j int) bool {
+				return search.Cosine(results[i].Vector, embedding) > search.Cosine(results[j].Vector, embedding)
+			})
+
+			// Print the results
+			fmt.Printf("found %d results\n", len(results))
+			for _, v := range results {
+				dx := search.Cosine(embedding, v.Vector)
+				switch {
+				case dx >= 0.9:
+					fmt.Printf(" ✅ %s (%.0f%%)\n", v.Text, math.Round(dx*100))
+				case dx >= 0.5:
+					fmt.Printf(" ❔ %s (%.0f%%)\n", v.Text, math.Round(dx*100))
+				default:
+					fmt.Printf(" ❌ %s (%.0f%%)\n", v.Text, math.Round(dx*100))
+				}
+
+			}
+		}
+	}
 }
 
 type entry struct {
