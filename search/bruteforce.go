@@ -35,9 +35,10 @@ func (b *Bag[T]) Add(vx Vector, item T) {
 	})
 }
 
+// Search searches the index for the k-nearest neighbors of the query vector.
 func (b *Bag[T]) Search(query Vector, k int) iter.Seq2[float64, T] {
 	return func(yield func(float64, T) bool) {
-		for _, r := range b.Search2(query, k) {
+		for _, r := range b.search(query, k) {
 			if !yield(r.Relevance, r.Value) {
 				break
 			}
@@ -46,7 +47,7 @@ func (b *Bag[T]) Search(query Vector, k int) iter.Seq2[float64, T] {
 }
 
 // Search implements a brute-force search algorithm to find the k-nearest neighbors
-func (b *Bag[T]) Search2(query Vector, k int) []Result[T] {
+func (b *Bag[T]) search(query Vector, k int) []Result[T] {
 	if k <= 0 {
 		return nil
 	}
