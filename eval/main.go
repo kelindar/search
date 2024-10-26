@@ -9,79 +9,70 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"time"
 
 	"github.com/kelindar/llm"
 )
 
 func loadModel() *llm.Model {
-	mod, _ := filepath.Abs("../dist/MiniLM-L6-v2.Q4_K_M.gguf")
-	//mod, _ := filepath.Abs("../dist/Llama-3.2-1B-Instruct-Q6_K_L.gguf")
-	//mod, _ := filepath.Abs("../dist/nomic-embed-text-v1.Q4_K_M.gguf")
-	//mod, _ := filepath.Abs("../dist/snowflake-arctic-embed-m-long--Q4_K_M.GGUF")
-	//mod, _ := filepath.Abs("../dist/snowflake-arctic-embed-m-long--Q5_K_M.GGUF")
-	//mod, _ := filepath.Abs("../dist/e5-base-v2.Q5_K_M.gguf")
-	ctx, err := llm.New(mod, 512)
+	model := "../dist/MiniLM-L6-v2.Q8_0.gguf"
+	fmt.Printf("Loading model: %s\n", model)
+
+	mod, _ := filepath.Abs(model)
+	ctx, err := llm.New(mod, 0)
 	if err != nil {
 		panic(err)
 	}
+
 	return ctx
 }
 
 func main() {
-	data, err := loadSICK()
-	if err != nil {
-		log.Fatalf("Failed to load SICK dataset: %v", err)
-	}
+	data, _ := loadSICK()
 
-	// Define grid search parameters for k and bias
-	kValues := []float64{1.00, 2.00, 3.00, 4.00, 5.00, 6.00, 7.00, 8.00, 9.00, 10.00}
-	biasValues := []float64{0, 0.25, 0.50, 1.00, 2.50, 5.00, 10.00}
-
-	// Track the best combination of parameters
-	var bestK, bestBias float64
-	bestPearson, bestSpearman, bestMSE := -1.0, -1.0, math.MaxFloat64
+	// Create slices to store predicted and human scores
+	embedScores := make([]float64, 0, len(data))
+	humanScores := make([]float64, 0, len(data))
 
 	// Load your language model
 	llm := loadModel()
 	defer llm.Close()
 
-	for _, k := range kValues {
-		for _, bias := range biasValues {
-			embedScores := make([]float64, 0, len(data))
-			humanScores := make([]float64, 0, len(data))
+	// Embed the sentences and calculate similarities
+	start := time.Now()
+	for _, v := range data {
+		embeddingA, _ := llm.EmbedText(v.Pair[0])
+		embeddingB, _ := llm.EmbedText(v.Pair[1])
 
-			// Embed the sentences and calculate similarities with the current k and bias
-			for _, v := range data {
-				embeddingA, _ := llm.EmbedText(v.Pair[0])
-				embeddingB, _ := llm.EmbedText(v.Pair[1])
+		// Calculate similarity (you can replace CosineSimilarity with your own method)
+		similarity := cosineScaled(embeddingA, embeddingB, 3.85, 0.5)
 
-				// Calculate similarity using the current k and bias
-				similarity := cosineScaled(embeddingA, embeddingB, k, bias)
-				embedScores = append(embedScores, similarity)
-				humanScores = append(humanScores, v.Rank)
-			}
+		// Clamp the similarity to 0 or 1
 
-			// Calculate correlations and MSE
-			pearson := pearson(humanScores, embedScores)
-			spearman := spearman(humanScores, embedScores)
-			mse := mse(humanScores, embedScores)
+		embedScores = append(embedScores, similarity)
+		humanScores = append(humanScores, v.Rank)
 
-			// Print the results for this combination
-			fmt.Printf("k: %.2f, bias: %.2f -> Spearman: %.4f, Pearson: %.4f, MSE: %.4f\n", k, bias, spearman, pearson, mse)
-
-			// Check if this combination is the best so far
-			if mse < bestMSE || (mse == bestMSE && pearson > bestPearson) {
-				bestK = k
-				bestBias = bias
-				bestPearson = pearson
-				bestSpearman = spearman
-				bestMSE = mse
-			}
-		}
+		// Print each comparison for debugging (optional)
+		//fmt.Printf(" - \"%s\" vs \"%s\"\n", v.Pair[0], v.Pair[1])
+		//fmt.Printf("   Human: %.2f, Predicted: %.2f\n", v.Rank, similarity)
 	}
 
-	// Print the best combination of k and bias
-	fmt.Printf("Best k: %.2f, Best bias: %.2f -> Best Spearman: %.4f, Best Pearson: %.4f, Best MSE: %.4f\n", bestK, bestBias, bestSpearman, bestPearson, bestMSE)
+	elapsed := time.Since(start)
+	count := len(data) * 2 // two sentences per comparison
+	fmt.Printf("✅ Processed %d sentences in %s, at a rate of %s per sentence\n", count, elapsed, elapsed/time.Duration(count))
+
+	// Calculate correlations between human scores and predicted scores
+	pearson := pearson(humanScores, embedScores)
+	spearman := spearman(humanScores, embedScores)
+	mse := mse(humanScores, embedScores)
+
+	if spearman < 0.7 {
+		fmt.Printf("❌ Spearman correlation of %.4f is below acceptable threshold\n", spearman)
+	} else {
+		fmt.Printf("✅ Spearman correlation between human scores and predicted scores: %.4f\n", spearman)
+	}
+
+	fmt.Printf("✅ Pearson correlation: %.4f, MSE: %.4f\n", pearson, mse)
 }
 
 type entry struct {

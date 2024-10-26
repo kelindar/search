@@ -26,12 +26,7 @@ func BenchmarkLLM(b *testing.B) {
 }
 
 func loadModel() *Model {
-	mod, _ := filepath.Abs("dist/MiniLM-L6-v2.Q4_K_M.gguf")
-	//mod, _ := filepath.Abs("dist/Llama-3.2-1B-Instruct-Q6_K_L.gguf")
-	//mod, _ := filepath.Abs("dist/nomic-embed-text-v1.Q4_K_M.gguf")
-	//mod, _ := filepath.Abs("dist/snowflake-arctic-embed-m-long--Q4_K_M.GGUF")
-	//mod, _ := filepath.Abs("dist/snowflake-arctic-embed-m-long--Q5_K_M.GGUF")
-	//mod, _ := filepath.Abs("dist/e5-base-v2.Q5_K_M.gguf")
+	mod, _ := filepath.Abs("dist/MiniLM-L6-v2.Q8_0.gguf")
 	ctx, err := New(mod, 512)
 	if err != nil {
 		panic(err)

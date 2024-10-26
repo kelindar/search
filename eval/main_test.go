@@ -29,8 +29,7 @@ func TestEmbeddingsQuality(t *testing.T) {
 		assert.NoError(t, err)
 
 		// Calculate similarity (you can replace CosineSimilarity with your own method)
-		//similarity := cosineScaled(embeddingA, embeddingB, 5, 0.5)
-		similarity := cosineScaled(embeddingA, embeddingB, 1, 0)
+		similarity := cosineScaled(embeddingA, embeddingB, 3.85, 0.5)
 
 		// Clamp the similarity to 0 or 1
 
@@ -38,8 +37,9 @@ func TestEmbeddingsQuality(t *testing.T) {
 		humanScores = append(humanScores, v.Rank)
 
 		// Print each comparison for debugging (optional)
-		fmt.Printf(" - \"%s\" vs \"%s\"\n", v.Pair[0], v.Pair[1])
-		fmt.Printf("   Human: %.2f, Predicted: %.2f\n", v.Rank, similarity)
+		//fmt.Printf(" - \"%s\" vs \"%s\"\n", v.Pair[0], v.Pair[1])
+		//fmt.Printf("   Human: %.2f, Predicted: %.2f\n", v.Rank, similarity)
+
 	}
 
 	// Calculate correlations between human scores and predicted scores
