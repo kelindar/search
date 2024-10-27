@@ -9,8 +9,8 @@ import (
 
 /*
 cpu: 13th Gen Intel(R) Core(TM) i7-13700K
-BenchmarkCosine/std-24         	15045380	        80.61 ns/op	       0 B/op	       0 allocs/op
-BenchmarkCosine/our-24         	55741100	        20.85 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCosine/std-24         	14911036	        80.46 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCosine/our-24         	61780514	        18.11 ns/op	       0 B/op	       0 allocs/op
 */
 func BenchmarkCosine(b *testing.B) {
 	x := randVec()

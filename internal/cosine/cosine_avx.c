@@ -10,7 +10,7 @@ void f32_cosine_distance(const float *x, const float *y, double *result, const u
     float sum_xx = 0.0f;
     float sum_yy = 0.0f;
 
-    #pragma clang loop vectorize(enable) interleave_count(4)
+    #pragma clang loop vectorize(enable) interleave_count(2)
     for (uint64_t i = 0; i < size; i++) {
         sum_xy += x[i] * y[i];    // Sum of x * y
         sum_xx += x[i] * x[i];     // Sum of x * x
