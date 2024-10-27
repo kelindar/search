@@ -1,4 +1,4 @@
-//go:build !noasm && !(amd64 || (darwin && arm64) || (!darwin && arm64))
+//go:build noasm || !(amd64 || (darwin && arm64) || (!darwin && arm64))
 
 package simd
 
