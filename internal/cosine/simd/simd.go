@@ -42,17 +42,18 @@ func Cosine(a, b []float32) float64 {
 }
 
 // cosine calculates the cosine similarity between two vectors
-func cosine(vec1, vec2 []float32) float64 {
-	var dotProduct, normA, normB float64
-	for i := range vec1 {
-		dotProduct += float64(vec1[i] * vec2[i])
-		normA += float64(vec1[i] * vec1[i])
-		normB += float64(vec2[i] * vec2[i])
+func cosine(x, y []float32) float64 {
+	var sum_xy, sum_xx, sum_yy float64
+	for i := range x {
+		sum_xy += float64(x[i] * y[i])
+		sum_xx += float64(x[i] * x[i])
+		sum_yy += float64(y[i] * y[i])
 	}
 
-	if normA == 0 || normB == 0 {
+	denominator := math.Sqrt(sum_xx) * math.Sqrt(sum_yy)
+	if denominator == 0 {
 		return 0.0
 	}
 
-	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
+	return sum_xy / denominator
 }

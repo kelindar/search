@@ -12,7 +12,7 @@ import (
 )
 
 /*
-BenchmarkLLM/encode-24         	     400	   2641772 ns/op	        18.00 tok/s	    2024 B/op	      11 allocs/op
+BenchmarkLLM/encode-24         	     465	   2305573 ns/op	    2024 B/op	      11 allocs/op
 */
 func BenchmarkLLM(b *testing.B) {
 	m := loadModel()
