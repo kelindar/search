@@ -47,11 +47,10 @@ void f32_cosine_distance(const float *x, const float *y, double *result, const u
         norm_y += y[i] * y[i];
     }
 
-    float denominator = sqrtf(norm_x) * sqrtf(norm_y);
-
     // Avoid division by zero
+    float denominator = sqrtf(norm_x) * sqrtf(norm_y);
     if (denominator == 0.0f) {
-        *result = 0.0f;
+        *result = (double)0.0f;
         return;
     }
 

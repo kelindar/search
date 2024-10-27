@@ -8,6 +8,30 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+/*
+cpu: 13th Gen Intel(R) Core(TM) i7-13700K
+BenchmarkCosine/std-24         	19490612	        66.05 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCosine/our-24         	67442631	        17.83 ns/op	       0 B/op	       0 allocs/op
+*/
+func BenchmarkCosine(b *testing.B) {
+	x := randVec()
+	y := randVec()
+
+	b.Run("std", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			cosine(x, y)
+		}
+	})
+
+	b.Run("our", func(b *testing.B) {
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			CosineDistance(x, y)
+		}
+	})
+}
+
 func TestCosine(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		x := randVec()

@@ -6,7 +6,7 @@
 #include <arm_neon.h>
 #include <math.h>
 
-void f32_cosine_distance(const float *x, const float *y, const uint64_t size, float *result) {
+void f32_cosine_distance(const float *x, const float *y, double *result, const uint64_t size) {
     float32x4_t sum_xy = vdupq_n_f32(0.0f);   // Sum of x * y
     float32x4_t sum_xx = vdupq_n_f32(0.0f);   // Sum of x * x
     float32x4_t sum_yy = vdupq_n_f32(0.0f);   // Sum of y * y
@@ -33,16 +33,14 @@ void f32_cosine_distance(const float *x, const float *y, const uint64_t size, fl
         norm_y += y[i] * y[i];
     }
 
-    float denominator = sqrtf(norm_x) * sqrtf(norm_y);
 
     // Avoid division by zero
+    float denominator = sqrtf(norm_x) * sqrtf(norm_y);
     if (denominator == 0.0f) {
-        *result = 0.0f;
+        *result = (double)0.0f;
         return;
     }
 
-    float cosine_similarity = dot_xy / denominator;
-    float cosine_distance = 1.0f - cosine_similarity;
-
-    *result = cosine_distance;
+    double cosine_similarity = (double)dot_xy / (double)denominator;
+    *result = cosine_similarity;
 }

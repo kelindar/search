@@ -4,6 +4,8 @@ import (
 	"sort"
 )
 
+type Vector = []float32
+
 type entry[T any] struct {
 	Vector []float32
 	Value  T

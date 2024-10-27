@@ -4,10 +4,10 @@
 TEXT ·f32_cosine_distance(SB), $0-32
 	MOVD x+0(FP), R0
 	MOVD y+8(FP), R1
-	MOVD size+16(FP), R2
-	MOVD result+24(FP), R3
+	MOVD result+16(FP), R2
+	MOVD size+24(FP), R3
 	WORD $0xa9bf7bfd       // stp	x29, x30, [sp, #-16]!
-	WORD $0xf100105f       // cmp	x2, #4
+	WORD $0xf100107f       // cmp	x3, #4
 	WORD $0x910003fd       // mov	x29, sp
 	WORD $0x54000223       // b.lo	.LBB0_4
 	WORD $0x6f00e401       // movi	v1.2d, #0000000000000000
@@ -22,11 +22,11 @@ LBB0_2:
 	WORD $0x3cc10524 // ldr	q4, [x9], #16
 	WORD $0x91001108 // add	x8, x8, #4
 	WORD $0x4e23cc62 // fmla	v2.4s, v3.4s, v3.4s
-	WORD $0xeb02011f // cmp	x8, x2
+	WORD $0xeb03011f // cmp	x8, x3
 	WORD $0x4e23cc81 // fmla	v1.4s, v4.4s, v3.4s
 	WORD $0x4e24cc80 // fmla	v0.4s, v4.4s, v4.4s
 	WORD $0x54ffff23 // b.lo	.LBB0_2
-	WORD $0x927ef448 // and	x8, x2, #0xfffffffffffffffc
+	WORD $0x927ef468 // and	x8, x3, #0xfffffffffffffffc
 	WORD $0x14000005 // b	.LBB0_5
 
 LBB0_4:
@@ -37,14 +37,14 @@ LBB0_4:
 
 LBB0_5:
 	WORD $0x6e21d421 // faddp	v1.4s, v1.4s, v1.4s
-	WORD $0xeb02011f // cmp	x8, x2
+	WORD $0xeb03011f // cmp	x8, x3
 	WORD $0x6e22d442 // faddp	v2.4s, v2.4s, v2.4s
 	WORD $0x6e20d403 // faddp	v3.4s, v0.4s, v0.4s
 	WORD $0x7e30d820 // faddp	s0, v1.2s
 	WORD $0x7e30d841 // faddp	s1, v2.2s
 	WORD $0x7e30d862 // faddp	s2, v3.2s
 	WORD $0x540006c2 // b.hs	.LBB0_12
-	WORD $0xcb080049 // sub	x9, x2, x8
+	WORD $0xcb080069 // sub	x9, x3, x8
 	WORD $0xf100213f // cmp	x9, #8
 	WORD $0x54000503 // b.lo	.LBB0_10
 	WORD $0x6f00e403 // movi	v3.2d, #0000000000000000
@@ -91,7 +91,7 @@ LBB0_8:
 
 LBB0_10:
 	WORD $0xd37ef50a // lsl	x10, x8, #2
-	WORD $0xcb080049 // sub	x9, x2, x8
+	WORD $0xcb080069 // sub	x9, x3, x8
 	WORD $0x8b0a0028 // add	x8, x1, x10
 	WORD $0x8b0a000a // add	x10, x0, x10
 
@@ -110,14 +110,14 @@ LBB0_12:
 	WORD $0x2f00e401 // movi	d1, #0000000000000000
 	WORD $0x1e202048 // fcmp	s2, #0.0
 	WORD $0x54000081 // b.ne	.LBB0_14
-	WORD $0xbd000061 // str	s1, [x3]
+	WORD $0xfd000041 // str	d1, [x2]
 	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16
 	WORD $0xd65f03c0 // ret
 
 LBB0_14:
-	WORD $0x1e221800 // fdiv	s0, s0, s2
-	WORD $0x1e2e1001 // fmov	s1, #1.00000000
-	WORD $0x1e203821 // fsub	s1, s1, s0
-	WORD $0xbd000061 // str	s1, [x3]
+	WORD $0x1e22c000 // fcvt	d0, s0
+	WORD $0x1e22c041 // fcvt	d1, s2
+	WORD $0x1e611801 // fdiv	d1, d0, d1
+	WORD $0xfd000041 // str	d1, [x2]
 	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16
 	WORD $0xd65f03c0 // ret

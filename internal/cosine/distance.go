@@ -7,5 +7,5 @@ func CosineDistance(x, y []float32) float32 {
 		panic("vectors must have the same length")
 	}
 
-	return simd.Cosine(x, y)
+	return float32(simd.Cosine(x, y))
 }

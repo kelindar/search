@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	"github.com/klauspost/cpuid/v2"
@@ -22,19 +23,28 @@ var (
 	errShape             = errors.New("mat: dimension mismatch")
 )
 
+var pool = sync.Pool{
+	New: func() any {
+		var x float64
+		return &x
+	},
+}
+
 // Matmul multiplies matrix M by N and writes the result into dst
-func Cosine(a, b []float32) float32 {
+func Cosine(a, b []float32) float64 {
 	if len(a) != len(b) {
 		panic("vectors must be of same length")
 	}
 
 	switch {
 	case hardware:
-		var result float64
-		f32_cosine_distance(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result), uint64(len(a)))
-		return float32(result)
+		out := pool.Get().(*float64)
+		f32_cosine_distance(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(out), uint64(len(a)))
+		result := *out // copy out
+		pool.Put(out)
+		return result
 	default:
-		return float32(cosine(a, b))
+		return float64(cosine(a, b))
 	}
 }
 

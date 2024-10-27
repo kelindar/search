@@ -6,4 +6,4 @@ package simd
 import "unsafe"
 
 //go:noescape,nosplit
-func f32_cosine_distance(x unsafe.Pointer, y unsafe.Pointer, size uint64, result unsafe.Pointer)
+func f32_cosine_distance(x unsafe.Pointer, y unsafe.Pointer, result unsafe.Pointer, size uint64)
