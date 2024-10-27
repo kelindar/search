@@ -23,7 +23,7 @@ var pool = sync.Pool{
 	},
 }
 
-// Matmul multiplies matrix M by N and writes the result into dst
+// Cosine calculates the cosine similarity between two vectors
 func Cosine(a, b []float32) float64 {
 	if len(a) != len(b) {
 		panic("vectors must be of same length")
@@ -37,7 +37,7 @@ func Cosine(a, b []float32) float64 {
 		pool.Put(out)
 		return result
 	default:
-		return float64(cosine(a, b))
+		return cosine(a, b)
 	}
 }
 

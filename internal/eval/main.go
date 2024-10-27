@@ -15,7 +15,7 @@ import (
 )
 
 func loadModel() *search.Vectorizer {
-	model := "../dist/MiniLM-L6-v2.Q8_0.gguf"
+	model := "../../dist/MiniLM-L6-v2.Q8_0.gguf"
 	fmt.Printf("Loading model: %s\n", model)
 
 	mod, _ := filepath.Abs(model)
@@ -83,7 +83,7 @@ type entry struct {
 
 // loadSICK parses the SICK CSV dataset and returns sentence pairs with their relatedness scores
 func loadSICK() ([]entry, error) {
-	file, err := os.Open("../dist/dataset.txt")
+	file, err := os.Open("../../dist/dataset.txt")
 	if err != nil {
 		return nil, err
 	}
