@@ -24,10 +24,7 @@ jobs:
         run: |
           cd build
           cmake --build . --config Release
-      - name: Install libraries
-        if: success()
-        run: |
-          sudo cp build/*.so /usr/lib/
+          sudo cp ../lib/*.so /usr/lib/
 
       - name: Set up Go
         uses: actions/setup-go@v1
