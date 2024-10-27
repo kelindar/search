@@ -13,7 +13,7 @@ import (
 
 /*
 cpu: 13th Gen Intel(R) Core(TM) i7-13700K
-BenchmarkIndex/search-24         	    4029	    298055 ns/op	     272 B/op	       3 allocs/op
+BenchmarkIndex/search-24         	    5366	    217116 ns/op	     272 B/op	       3 allocs/op
 */
 func BenchmarkIndex(b *testing.B) {
 	data, err := loadDataset()

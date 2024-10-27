@@ -4,6 +4,7 @@
 package search
 
 import (
+	"math"
 	"sort"
 
 	"github.com/kelindar/search/internal/cosine/simd"
@@ -36,6 +37,8 @@ func NewIndex[T any]() *Index[T] {
 
 // Add adds a new vector to the search index.
 func (b *Index[T]) Add(vx Vector, item T) {
+	normalize(vx)
+
 	b.arr = append(b.arr, entry[T]{
 		Vector: vx,
 		Value:  item,
@@ -48,10 +51,13 @@ func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 		return nil
 	}
 
+	// Normalize and quantize the query vector
+	normalize(query)
+
 	var relevance float64
 	dst := make(minheap[T], 0, k)
 	for _, v := range b.arr {
-		simd.Cosine(&relevance, v.Vector, query)
+		simd.DotProduct(&relevance, query, v.Vector)
 		result := Result[T]{
 			entry:     v,
 			Relevance: relevance,
@@ -71,6 +77,21 @@ func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 	// Sort the results by relevance
 	sort.Sort(&dst)
 	return dst
+}
+
+// Normalize normalizes the vector, resulting in a unit vector. This allows us
+// to do a simple dot product to calculate the cosine similarity instead of
+// the full cosine distance.
+func normalize(v []float32) {
+	norm := float32(0)
+	for _, x := range v {
+		norm += x * x
+	}
+
+	norm = float32(math.Sqrt(float64(norm)))
+	for i := range v {
+		v[i] /= norm
+	}
 }
 
 // --------------------------------- Heap ---------------------------------

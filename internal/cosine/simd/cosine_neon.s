@@ -114,3 +114,65 @@ LBB0_11:
 	WORD $0xfd000040 // str	d0, [x2]
 	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16
 	WORD $0xd65f03c0 // ret
+
+TEXT ·f32_dot_product(SB), $0-32
+	MOVD x+0(FP), R0
+	MOVD y+8(FP), R1
+	MOVD result+16(FP), R2
+	MOVD size+24(FP), R3
+	WORD $0xa9bf7bfd       // stp	x29, x30, [sp, #-16]!
+	WORD $0x910003fd       // mov	x29, sp
+	WORD $0xb40000c3       // cbz	x3, .LBB1_3
+	WORD $0xf100207f       // cmp	x3, #8
+	WORD $0x54000102       // b.hs	.LBB1_4
+	WORD $0x2f00e400       // movi	d0, #0000000000000000
+	WORD $0xaa1f03e8       // mov	x8, xzr
+	WORD $0x14000018       // b	.LBB1_7
+
+LBB1_3:
+	WORD $0x2f00e400 // movi	d0, #0000000000000000
+	WORD $0xfd000040 // str	d0, [x2]
+	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16
+	WORD $0xd65f03c0 // ret
+
+LBB1_4:
+	WORD $0x927df068 // and	x8, x3, #0xfffffffffffffff8
+	WORD $0x91004009 // add	x9, x0, #16
+	WORD $0x6f00e400 // movi	v0.2d, #0000000000000000
+	WORD $0x9100402a // add	x10, x1, #16
+	WORD $0x6f00e401 // movi	v1.2d, #0000000000000000
+	WORD $0xaa0803eb // mov	x11, x8
+
+LBB1_5:
+	WORD $0xad7f8d22 // ldp	q2, q3, [x9, #-16]
+	WORD $0x91008129 // add	x9, x9, #32
+	WORD $0xf100216b // subs	x11, x11, #8
+	WORD $0xad7f9544 // ldp	q4, q5, [x10, #-16]
+	WORD $0x9100814a // add	x10, x10, #32
+	WORD $0x4e22cc80 // fmla	v0.4s, v4.4s, v2.4s
+	WORD $0x4e23cca1 // fmla	v1.4s, v5.4s, v3.4s
+	WORD $0x54ffff21 // b.ne	.LBB1_5
+	WORD $0x4e20d420 // fadd	v0.4s, v1.4s, v0.4s
+	WORD $0xeb03011f // cmp	x8, x3
+	WORD $0x6e20d400 // faddp	v0.4s, v0.4s, v0.4s
+	WORD $0x7e30d800 // faddp	s0, v0.2s
+	WORD $0x54000140 // b.eq	.LBB1_9
+
+LBB1_7:
+	WORD $0xd37ef50a // lsl	x10, x8, #2
+	WORD $0xcb080069 // sub	x9, x3, x8
+	WORD $0x8b0a0028 // add	x8, x1, x10
+	WORD $0x8b0a000a // add	x10, x0, x10
+
+LBB1_8:
+	WORD $0xbc404541 // ldr	s1, [x10], #4
+	WORD $0xbc404502 // ldr	s2, [x8], #4
+	WORD $0xf1000529 // subs	x9, x9, #1
+	WORD $0x1f010040 // fmadd	s0, s2, s1, s0
+	WORD $0x54ffff81 // b.ne	.LBB1_8
+
+LBB1_9:
+	WORD $0x1e22c000 // fcvt	d0, s0
+	WORD $0xfd000040 // str	d0, [x2]
+	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16
+	WORD $0xd65f03c0 // ret
