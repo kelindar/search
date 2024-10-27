@@ -48,9 +48,10 @@ func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 		return nil
 	}
 
+	var relevance float64
 	dst := make(minheap[T], 0, k)
 	for _, v := range b.arr {
-		relevance := simd.Cosine(v.Vector, query)
+		simd.Cosine(&relevance, v.Vector, query)
 		result := Result[T]{
 			entry:     v,
 			Relevance: relevance,
@@ -61,7 +62,7 @@ func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 		switch {
 		case dst.Len() < k:
 			dst.Push(result)
-		case relevance > dst[0].Relevance:
+		case result.Relevance > dst[0].Relevance:
 			dst.Pop()
 			dst.Push(result)
 		}

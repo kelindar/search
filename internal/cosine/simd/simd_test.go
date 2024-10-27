@@ -9,8 +9,8 @@ import (
 
 /*
 cpu: 13th Gen Intel(R) Core(TM) i7-13700K
-BenchmarkCosine/std-24         	15074694	        80.61 ns/op	       0 B/op	       0 allocs/op
-BenchmarkCosine/our-24         	45370162	        25.92 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCosine/std-24         	15045380	        80.61 ns/op	       0 B/op	       0 allocs/op
+BenchmarkCosine/our-24         	55741100	        20.85 ns/op	       0 B/op	       0 allocs/op
 */
 func BenchmarkCosine(b *testing.B) {
 	x := randVec()
@@ -24,9 +24,10 @@ func BenchmarkCosine(b *testing.B) {
 	})
 
 	b.Run("our", func(b *testing.B) {
+		var out float64
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			Cosine(x, y)
+			Cosine(&out, x, y)
 		}
 	})
 }
@@ -36,9 +37,10 @@ func TestCosine(t *testing.T) {
 		x := randVec()
 		y := randVec()
 
+		var actual float64
+		Cosine(&actual, x, y)
 		expect := cosine(x, y)
-		actual := Cosine(x, y)
-		assert.InDelta(t, expect, actual, 1e-4, "expected %v, got %v", expect, actual)
+		assert.InDelta(t, expect, actual, 1e-4, "expected %v, got %v", cosine(x, y), actual)
 	}
 }
 

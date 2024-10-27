@@ -3,7 +3,6 @@ package simd
 import (
 	"math"
 	"runtime"
-	"sync"
 	"unsafe"
 
 	"github.com/klauspost/cpuid/v2"
@@ -16,28 +15,17 @@ var (
 	hardware = avx2 || apple || neon
 )
 
-var pool = sync.Pool{
-	New: func() any {
-		var x float64
-		return &x
-	},
-}
-
-// Cosine calculates the cosine similarity between two vectors
-func Cosine(a, b []float32) float64 {
+// Cosine calculates the cosine similarity between two vectors and stores the result in the destination
+func Cosine(dst *float64, a, b []float32) {
 	if len(a) != len(b) {
 		panic("vectors must be of same length")
 	}
 
 	switch {
 	case hardware:
-		out := pool.Get().(*float64)
-		f32_cosine_distance(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(out), uint64(len(a)))
-		result := *out // copy out
-		pool.Put(out)
-		return result
+		f32_cosine_distance(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(dst), uint64(len(a)))
 	default:
-		return cosine(a, b)
+		*dst = cosine(a, b)
 	}
 }
 
