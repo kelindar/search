@@ -1,7 +1,6 @@
 package simd
 
 import (
-	"errors"
 	"math"
 	"runtime"
 	"sync"
@@ -15,12 +14,6 @@ var (
 	apple    = runtime.GOARCH == "arm64" && runtime.GOOS == "darwin"
 	neon     = runtime.GOARCH == "arm64" && cpuid.CPU.Supports(cpuid.SVE)
 	hardware = avx2 || apple || neon
-)
-
-var (
-	errZeroLength        = errors.New("mat: zero length in matrix dimension")
-	errNegativeDimension = errors.New("mat: negative dimension")
-	errShape             = errors.New("mat: dimension mismatch")
 )
 
 var pool = sync.Pool{

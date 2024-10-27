@@ -2,6 +2,8 @@ package search
 
 import (
 	"sort"
+
+	"github.com/kelindar/search/internal/cosine/simd"
 )
 
 type Vector = []float32
@@ -45,7 +47,7 @@ func (b *Index[T]) Search(query Vector, k int) []Result[T] {
 
 	dst := make(minheap[T], 0, k)
 	for _, v := range b.arr {
-		relevance := Cosine(v.Vector, query)
+		relevance := simd.Cosine(v.Vector, query)
 		result := Result[T]{
 			entry:     v,
 			Relevance: relevance,
