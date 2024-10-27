@@ -104,3 +104,74 @@ LBB0_9:
 	BYTE $0x5d               // pop	rbp
 	WORD $0xf8c5; BYTE $0x77 // vzeroupper
 	BYTE $0xc3               // ret
+
+TEXT ·f32_dot_product(SB), $0-32
+	MOVQ x+0(FP), DI
+	MOVQ y+8(FP), SI
+	MOVQ result+16(FP), DX
+	MOVQ size+24(FP), CX
+	BYTE $0x55               // push	rbp
+	WORD $0x8948; BYTE $0xe5 // mov	rbp, rsp
+	LONG $0xf8e48348         // and	rsp, -8
+	WORD $0x8548; BYTE $0xc9 // test	rcx, rcx
+	JE   LBB1_1
+	LONG $0x20f98348         // cmp	rcx, 32
+	JAE  LBB1_5
+	LONG $0xc057f8c5         // vxorps	xmm0, xmm0, xmm0
+	WORD $0x3145; BYTE $0xc0 // xor	r8d, r8d
+	JMP  LBB1_4
+
+LBB1_1:
+	LONG $0xc057f8c5         // vxorps	xmm0, xmm0, xmm0
+	LONG $0x0211fbc5         // vmovsd	qword ptr [rdx], xmm0
+	WORD $0x8948; BYTE $0xec // mov	rsp, rbp
+	BYTE $0x5d               // pop	rbp
+	BYTE $0xc3               // ret
+
+LBB1_5:
+	WORD $0x8949; BYTE $0xc8 // mov	r8, rcx
+	LONG $0xe0e08349         // and	r8, -32
+	LONG $0xc057f8c5         // vxorps	xmm0, xmm0, xmm0
+	WORD $0xc031             // xor	eax, eax
+	LONG $0xc957f0c5         // vxorps	xmm1, xmm1, xmm1
+	LONG $0xd257e8c5         // vxorps	xmm2, xmm2, xmm2
+	LONG $0xdb57e0c5         // vxorps	xmm3, xmm3, xmm3
+
+LBB1_6:
+	LONG $0x2410fcc5; BYTE $0x86               // vmovups	ymm4, ymmword ptr [rsi + 4*rax]
+	LONG $0x6c10fcc5; WORD $0x2086             // vmovups	ymm5, ymmword ptr [rsi + 4*rax + 32]
+	LONG $0x7410fcc5; WORD $0x4086             // vmovups	ymm6, ymmword ptr [rsi + 4*rax + 64]
+	LONG $0x7c10fcc5; WORD $0x6086             // vmovups	ymm7, ymmword ptr [rsi + 4*rax + 96]
+	LONG $0xb85de2c4; WORD $0x8704             // vfmadd231ps	ymm0, ymm4, ymmword ptr [rdi + 4*rax]
+	LONG $0xb855e2c4; WORD $0x874c; BYTE $0x20 // vfmadd231ps	ymm1, ymm5, ymmword ptr [rdi + 4*rax + 32]
+	LONG $0xb84de2c4; WORD $0x8754; BYTE $0x40 // vfmadd231ps	ymm2, ymm6, ymmword ptr [rdi + 4*rax + 64]
+	LONG $0xb845e2c4; WORD $0x875c; BYTE $0x60 // vfmadd231ps	ymm3, ymm7, ymmword ptr [rdi + 4*rax + 96]
+	LONG $0x20c08348                           // add	rax, 32
+	WORD $0x3949; BYTE $0xc0                   // cmp	r8, rax
+	JNE  LBB1_6
+	LONG $0xc058f4c5                           // vaddps	ymm0, ymm1, ymm0
+	LONG $0xc058ecc5                           // vaddps	ymm0, ymm2, ymm0
+	LONG $0xc058e4c5                           // vaddps	ymm0, ymm3, ymm0
+	LONG $0x197de3c4; WORD $0x01c1             // vextractf128	xmm1, ymm0, 1
+	LONG $0xc158f8c5                           // vaddps	xmm0, xmm0, xmm1
+	LONG $0x0579e3c4; WORD $0x01c8             // vpermilpd	xmm1, xmm0, 1
+	LONG $0xc158f8c5                           // vaddps	xmm0, xmm0, xmm1
+	LONG $0xc816fac5                           // vmovshdup	xmm1, xmm0
+	LONG $0xc158fac5                           // vaddss	xmm0, xmm0, xmm1
+	WORD $0x3949; BYTE $0xc8                   // cmp	r8, rcx
+	JE   LBB1_8
+
+LBB1_4:
+	LONG $0x107aa1c4; WORD $0x860c // vmovss	xmm1, dword ptr [rsi + 4*r8]
+	LONG $0xb971a2c4; WORD $0x8704 // vfmadd231ss	xmm0, xmm1, dword ptr [rdi + 4*r8]
+	WORD $0xff49; BYTE $0xc0       // inc	r8
+	WORD $0x394c; BYTE $0xc1       // cmp	rcx, r8
+	JNE  LBB1_4
+
+LBB1_8:
+	LONG $0xc05afac5         // vcvtss2sd	xmm0, xmm0, xmm0
+	LONG $0x0211fbc5         // vmovsd	qword ptr [rdx], xmm0
+	WORD $0x8948; BYTE $0xec // mov	rsp, rbp
+	BYTE $0x5d               // pop	rbp
+	WORD $0xf8c5; BYTE $0x77 // vzeroupper
+	BYTE $0xc3               // ret

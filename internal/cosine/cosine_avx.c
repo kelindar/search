@@ -13,8 +13,8 @@ void f32_cosine_distance(const float *x, const float *y, double *result, const u
     #pragma clang loop vectorize(enable) interleave_count(2)
     for (uint64_t i = 0; i < size; i++) {
         sum_xy += x[i] * y[i];    // Sum of x * y
-        sum_xx += x[i] * x[i];     // Sum of x * x
-        sum_yy += y[i] * y[i];     // Sum of y * y
+        sum_xx += x[i] * x[i];    // Sum of x * x
+        sum_yy += y[i] * y[i];    // Sum of y * y
     }
 
     // Calculate the final result
@@ -26,4 +26,15 @@ void f32_cosine_distance(const float *x, const float *y, double *result, const u
 
     double cosine_similarity = (double)sum_xy / (double)denominator;
     *result = cosine_similarity;
+}
+
+void f32_dot_product(const float *x, const float *y, double *result, const uint64_t size) {
+    float sum = 0.0f;
+
+    #pragma clang loop vectorize(enable) interleave(enable)
+    for (uint64_t i = 0; i < size; i++) {
+        sum += x[i] * y[i];
+    }
+
+    *result = (double)sum;
 }
