@@ -28,7 +28,6 @@ func BenchmarkIndex(b *testing.B) {
 			_ = index.Search(data[i%1000].Vector, 5)
 		}
 	})
-
 }
 
 func TestIndex(t *testing.T) {

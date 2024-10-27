@@ -1,7 +1,7 @@
 package search
 
 import (
-	"github.com/viant/vec/search"
+	dist "github.com/kelindar/search/internal/cosine"
 )
 
 type Vector = []float32
@@ -14,5 +14,6 @@ func Cosine(a, b Vector) float64 {
 
 // CosineScaled computes the cosine distance between two vectors.
 func cosineDistance(a, b Vector) float32 {
-	return search.Float32s(a).CosineDistance(b)
+	//return search.Float32s(a).CosineDistance(b)
+	return dist.CosineDistance(a, b)
 }

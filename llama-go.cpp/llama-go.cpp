@@ -9,23 +9,7 @@ typedef struct llama_model* model_t;
 typedef struct llama_context* context_t;
 
 std::string embd_sep = "\n";
-int32_t embd_normalize = 2; // normalisation for embendings (-1=none, 0=max absolute int16, 1=taxicab, 2=euclidean, >2=p-norm)
-
-static std::vector<std::string> split_lines(const std::string & s, const std::string & separator = "\n") {
-    std::vector<std::string> lines;
-    size_t start = 0;
-    size_t end = s.find(separator);
-
-    while (end != std::string::npos) {
-        lines.push_back(s.substr(start, end - start));
-        start = end + separator.length();
-        end = s.find(separator, start);
-    }
-
-    lines.push_back(s.substr(start)); // Add the last part
-
-    return lines;
-}
+int32_t embd_normalize = 2; // normalisation (-1=none, 0=max absolute int16, 1=taxicab, 2=euclidean, >2=p-norm)
 
 static void batch_add_seq(llama_batch & batch, const std::vector<int32_t> & tokens, llama_seq_id seq_id) {
     size_t n_tokens = tokens.size();
