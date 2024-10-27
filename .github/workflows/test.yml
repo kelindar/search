@@ -8,23 +8,19 @@ jobs:
     name: Test with Coverage
     runs-on: ubuntu-latest
     steps:
-      - name: Set up Go
-        uses: actions/setup-go@v1
-        with:
-          go-version: "1.23"
-      - name: Check out code
-        uses: actions/checkout@v2
-      - name: Install dependencies
+      - name: Install C++ dependencies
         run: |
-          go mod download
           sudo apt-get update
           sudo apt-get install -y build-essential
+          git clone --recurse-submodules https://github.com/ggerganov/llama.cpp
+      - name: Check out code
+        uses: actions/checkout@v2
       - name: Configure CMake
         run: |
           mkdir -p build
           cd build
           cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc ..
-      - name: Build the project
+      - name: Build Shared Library
         run: |
           cd build
           cmake --build . --config Release
@@ -32,6 +28,14 @@ jobs:
         if: success()
         run: |
           sudo cp build/*.so /usr/lib/
+
+      - name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: "1.23"
+      - name: Install Go dependencies
+        run: |
+          go mod download
       - name: Run Unit Tests
         run: |
           go test -tags noasm -race -covermode atomic -coverprofile=profile.cov ./...
