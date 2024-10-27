@@ -74,8 +74,8 @@ for _, r := range results {
 First, clone the repository and its submodules with the following commands. The `--recurse-submodules` flag is used to clone the `ggml` submodule, which is a header-only library for matrix operations.
 
 ```bash
-git clone --recurse-submodules https://github.com/ggerganov/llama.cpp
-cd llama.cpp
+git submodule update --init --recursive
+git lfs pull
 ```
 
 ### Compile on Linux
