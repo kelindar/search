@@ -30,7 +30,7 @@ target_link_libraries(llama_go PRIVATE
     # Add other libraries if required
 )
 
-# Specify the library version (optional but recommended)
+# Specify the library version
 set_target_properties(llama_go PROPERTIES
     VERSION ${PROJECT_VERSION}
     SOVERSION 1
@@ -43,7 +43,7 @@ set_target_properties(llama_go PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
-# Installation rules (optional)
+# Installation rules 
 install(TARGETS llama_go
     EXPORT llama_go_export
     LIBRARY DESTINATION lib
