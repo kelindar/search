@@ -1,3 +1,13 @@
+<p align="center">
+<img width="330" height="110" src=".github/logo.png" border="0" alt="kelindar/search">
+<br>
+<img src="https://img.shields.io/github/go-mod/go-version/kelindar/search" alt="Go Version">
+<a href="https://pkg.go.dev/github.com/kelindar/search"><img src="https://pkg.go.dev/badge/github.com/kelindar/search" alt="PkgGoDev"></a>
+<a href="https://goreportcard.com/report/github.com/kelindar/search"><img src="https://goreportcard.com/badge/github.com/kelindar/search" alt="Go Report Card"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+<a href="https://coveralls.io/github/kelindar/search"><img src="https://coveralls.io/repos/github/kelindar/search/badge.svg" alt="Coverage"></a>
+</p>
+
 # Semantic Search
 
 This library was created to provide an **easy and efficient solution for embedding and vector search**, making it perfect for small to medium-scale projects that still need some **serious semantic power**. It’s built around a simple idea: if your dataset is small enough, you can achieve accurate results with brute-force techniques, and with some smart optimizations like **SIMD**, you can keep things fast and lean.
@@ -13,7 +23,7 @@ The library’s strength lies in its simplicity and support for **GGUF BERT mode
 - **Precompiled Binaries with Vulkan GPU Support**: Available for Windows and Linux in the [dist](dist) directory, compiled with Vulkan for GPU acceleration. However, you can compile the library yourself with or without GPU support.
 - **Search Index for Embeddings**: The library supports the creation of a search index from computed embeddings, which can be saved to disk and loaded later. This feature is suitable for basic vector-based searches in small-scale applications, but it may face efficiency challenges with large datasets due to the use of brute-force techniques.
 
-## Limitations
+## 🤔 Limitations
 
 While simple vector search excels in small-scale applications,avoid using this library if you have the following requirements.
 
