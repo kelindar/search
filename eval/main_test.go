@@ -17,15 +17,15 @@ func TestEmbeddingsQuality(t *testing.T) {
 	humanScores := make([]float64, 0, len(data))
 
 	// Load your language model
-	llm := loadModel()
-	defer llm.Close()
+	m := loadModel()
+	defer m.Close()
 
 	// Embed the sentences and calculate similarities
 	for _, v := range data {
-		embeddingA, err := llm.EmbedText(v.Pair[0])
+		embeddingA, err := m.EmbedText(v.Pair[0])
 		assert.NoError(t, err)
 
-		embeddingB, err := llm.EmbedText(v.Pair[1])
+		embeddingB, err := m.EmbedText(v.Pair[1])
 		assert.NoError(t, err)
 
 		// Calculate similarity (you can replace CosineSimilarity with your own method)
@@ -52,5 +52,5 @@ func TestEmbeddingsQuality(t *testing.T) {
 	fmt.Printf("Mean Squared Error between human scores and predicted scores: %.4f\n", mse)
 
 	// Assert that the correlation meets your desired threshold
-	assert.False(t, spearman > 0.1, "Correlation is below acceptable threshold")
+	assert.True(t, spearman > 0.7, "Correlation is below acceptable threshold")
 }

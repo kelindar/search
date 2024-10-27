@@ -1,4 +1,4 @@
-package llm
+package search
 
 import (
 	"fmt"
@@ -6,21 +6,21 @@ import (
 	"sync/atomic"
 )
 
-// Model represents a loaded LLM/Embedding model.
-type Model struct {
+// Vectorizer represents a loaded LLM/Embedding model.
+type Vectorizer struct {
 	handle uintptr
 	n_embd int32
 	pool   *pool[*Context]
 }
 
-// New creates a new  model from the given model file.
-func New(modelPath string, gpuLayers int) (*Model, error) {
+// NewVectorizer creates a new vectorizer model from the given model file.
+func NewVectorizer(modelPath string, gpuLayers int) (*Vectorizer, error) {
 	handle := load_model(modelPath, uint32(gpuLayers))
 	if handle == 0 {
 		return nil, fmt.Errorf("failed to load model (%s)", modelPath)
 	}
 
-	model := &Model{
+	model := &Vectorizer{
 		handle: handle,
 		n_embd: embed_size(handle),
 	}
@@ -33,7 +33,7 @@ func New(modelPath string, gpuLayers int) (*Model, error) {
 }
 
 // Close closes the model and releases any resources associated with it.
-func (m *Model) Close() error {
+func (m *Vectorizer) Close() error {
 	free_model(m.handle)
 	m.handle = 0
 	m.pool.Close()
@@ -41,7 +41,7 @@ func (m *Model) Close() error {
 }
 
 // Context creates a new context of the given size.
-func (m *Model) Context(size int) *Context {
+func (m *Vectorizer) Context(size int) *Context {
 	return &Context{
 		parent: m,
 		handle: load_context(m.handle, uint32(size), true),
@@ -49,10 +49,19 @@ func (m *Model) Context(size int) *Context {
 }
 
 // EmbedText embeds the given text using the model.
-func (m *Model) EmbedText(text string) ([]float32, error) {
+func (m *Vectorizer) EmbedText(text string) ([]float32, error) {
 	ctx := m.pool.Get()
 	defer m.pool.Put(ctx)
 	return ctx.EmbedText(text)
+}
+
+// --------------------------------- Context ---------------------------------
+
+// Context represents a context for embedding text using the model.
+type Context struct {
+	parent *Vectorizer
+	handle uintptr
+	tokens atomic.Uint64
 }
 
 // Close closes the context and releases any resources associated with it.
@@ -60,14 +69,6 @@ func (ctx *Context) Close() error {
 	free_context(ctx.handle)
 	ctx.handle = 0
 	return nil
-}
-
-// --------------------------------- Context ---------------------------------
-
-type Context struct {
-	parent *Model
-	handle uintptr
-	tokens atomic.Uint64
 }
 
 // Tokens returns the number of tokens processed by the context.

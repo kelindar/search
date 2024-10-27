@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package llm
+package search
 
 import "syscall"
 

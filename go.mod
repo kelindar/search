@@ -1,4 +1,4 @@
-module github.com/kelindar/llm
+module github.com/kelindar/search
 
 go 1.23.1
 

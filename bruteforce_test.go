@@ -57,7 +57,7 @@ type record struct {
 }
 
 func loadDataset() ([]record, error) {
-	file, err := os.Open("dataset.gob")
+	file, err := os.Open("dist/dataset.gob")
 	if err != nil {
 		return nil, err
 	}

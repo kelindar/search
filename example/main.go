@@ -9,12 +9,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kelindar/llm"
-	"github.com/kelindar/llm/search"
+	"github.com/kelindar/search"
 )
 
 func main() {
-	m, err := llm.New("../dist/MiniLM-L6-v2.Q8_0.gguf", 0)
+	m, err := search.NewVectorizer("../dist/MiniLM-L6-v2.Q8_0.gguf", 0)
 	if err != nil {
 		panic(err)
 	}
@@ -22,7 +21,7 @@ func main() {
 	defer m.Close()
 
 	// Load a pre-embedded dataset and create an exact search index
-	data, _ := loadDataset("../search/dataset.gob")
+	data, _ := loadDataset("../dist/dataset.gob")
 	index := search.NewIndex[string]()
 
 	// Embed the sentences and calculate similarities
@@ -89,7 +88,7 @@ func loadDataset(path string) ([]record, error) {
 
 /*
 func main() {
-	m, err := llm.New("../dist/MiniLM-L6-v2.Q8_0.gguf", 0)
+	m, err := search.New("../dist/MiniLM-L6-v2.Q8_0.gguf", 0)
 	if err != nil {
 		panic(err)
 	}

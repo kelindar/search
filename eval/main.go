@@ -11,15 +11,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kelindar/llm"
+	"github.com/kelindar/search"
 )
 
-func loadModel() *llm.Model {
+func loadModel() *search.Vectorizer {
 	model := "../dist/MiniLM-L6-v2.Q8_0.gguf"
 	fmt.Printf("Loading model: %s\n", model)
 
 	mod, _ := filepath.Abs(model)
-	ctx, err := llm.New(mod, 0)
+	ctx, err := search.NewVectorizer(mod, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -35,14 +35,14 @@ func main() {
 	humanScores := make([]float64, 0, len(data))
 
 	// Load your language model
-	llm := loadModel()
-	defer llm.Close()
+	m := loadModel()
+	defer m.Close()
 
 	// Embed the sentences and calculate similarities
 	start := time.Now()
 	for _, v := range data {
-		embeddingA, _ := llm.EmbedText(v.Pair[0])
-		embeddingB, _ := llm.EmbedText(v.Pair[1])
+		embeddingA, _ := m.EmbedText(v.Pair[0])
+		embeddingB, _ := m.EmbedText(v.Pair[1])
 
 		// Calculate similarity (you can replace CosineSimilarity with your own method)
 		similarity := cosineScaled(embeddingA, embeddingB, 3.85, 0.5)
@@ -83,7 +83,7 @@ type entry struct {
 
 // loadSICK parses the SICK CSV dataset and returns sentence pairs with their relatedness scores
 func loadSICK() ([]entry, error) {
-	file, err := os.Open("dataset.txt")
+	file, err := os.Open("../dist/dataset.txt")
 	if err != nil {
 		return nil, err
 	}
