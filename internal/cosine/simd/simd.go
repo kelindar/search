@@ -30,9 +30,9 @@ func Cosine(a, b []float32) float32 {
 
 	switch {
 	case hardware:
-		var result float32
-		f32_cosine_distance(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), uint64(len(a)), unsafe.Pointer(&result))
-		return result
+		var result float64
+		f32_cosine_distance(unsafe.Pointer(&a[0]), unsafe.Pointer(&b[0]), unsafe.Pointer(&result), uint64(len(a)))
+		return float32(result)
 	default:
 		return float32(cosine(a, b))
 	}
