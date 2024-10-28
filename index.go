@@ -19,8 +19,8 @@ type entry[T any] struct {
 
 // Result represents a search result.
 type Result[T any] struct {
-	entry[T]
 	Relevance float64 // The relevance of the result
+	Value     T       // The value of the result
 }
 
 // Index represents a brute-force search index, returning exact results.
@@ -31,46 +31,52 @@ type Index[T any] struct {
 // NewIndex creates a new exact search index.
 func NewIndex[T any]() *Index[T] {
 	return &Index[T]{
-		arr: make([]entry[T], 0),
+		arr: make([]entry[T], 0, 512),
 	}
 }
 
-// Add adds a new vector to the search index.
-func (b *Index[T]) Add(vx Vector, item T) {
-	normalize(vx)
+// Len returns the number of items in the index.
+func (idx *Index[T]) Len() int {
+	return len(idx.arr)
+}
 
-	b.arr = append(b.arr, entry[T]{
+// Add adds a new vector to the search index.
+func (idx *Index[T]) Add(vx Vector, item T) {
+	normalize(vx)
+	idx.arr = append(idx.arr, entry[T]{
 		Vector: vx,
 		Value:  item,
 	})
 }
 
 // Search searches the index for the k-nearest neighbors of the query vector.
-func (b *Index[T]) Search(query Vector, k int) []Result[T] {
+func (idx *Index[T]) Search(query Vector, k int) []Result[T] {
 	if k <= 0 {
 		return nil
 	}
 
-	// Normalize and quantize the query vector
+	// Normalize the query vector
 	normalize(query)
 
-	var relevance float64
+	var r float64
 	dst := make(minheap[T], 0, k)
-	for _, v := range b.arr {
-		simd.DotProduct(&relevance, query, v.Vector)
-		result := Result[T]{
-			entry:     v,
-			Relevance: relevance,
-		}
+	for _, v := range idx.arr {
+		simd.DotProduct(&r, query, v.Vector)
 
 		// If the heap is not full, add the result, otherwise replace
 		// the minimum element
 		switch {
 		case dst.Len() < k:
-			dst.Push(result)
-		case result.Relevance > dst[0].Relevance:
+			dst.Push(Result[T]{
+				Value:     v.Value,
+				Relevance: r,
+			})
+		case r > dst[0].Relevance:
 			dst.Pop()
-			dst.Push(result)
+			dst.Push(Result[T]{
+				Value:     v.Value,
+				Relevance: r,
+			})
 		}
 	}
 

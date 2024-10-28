@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/gob"
 	"fmt"
 	"math"
 	"os"
@@ -21,13 +20,7 @@ func main() {
 	defer m.Close()
 
 	// Load a pre-embedded dataset and create an exact search index
-	data, _ := loadDataset("../dist/dataset.gob")
-	index := search.NewIndex[string]()
-
-	// Embed the sentences and calculate similarities
-	for _, v := range data {
-		index.Add(v.Vector, v.Pair[0]) // use m.EmbedText() for real-time embedding
-	}
+	index := loadIndex("../dist/dataset.bin")
 
 	r := bufio.NewReader(os.Stdin)
 	for {
@@ -63,27 +56,12 @@ func main() {
 	}
 }
 
-type record struct {
-	Pair   [2]string `gob:"pair"`
-	Rank   float64   `gob:"rank"`
-	Label  string    `gob:"label"`
-	Vector []float32 `gob:"vector"`
-}
-
-func loadDataset(path string) ([]record, error) {
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, err
+func loadIndex(path string) *search.Index[string] {
+	index := search.NewIndex[string]()
+	if err := index.ReadFile(path); err != nil {
+		panic(err)
 	}
-	defer file.Close()
-
-	var data []record
-	r := gob.NewDecoder(file)
-	if err := r.Decode(&data); err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return index
 }
 
 /*
