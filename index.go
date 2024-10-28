@@ -41,10 +41,9 @@ func (idx *Index[T]) Len() int {
 }
 
 // Add adds a new vector to the search index.
-func (b *Index[T]) Add(vx Vector, item T) {
+func (idx *Index[T]) Add(vx Vector, item T) {
 	normalize(vx)
-
-	b.arr = append(b.arr, entry[T]{
+	idx.arr = append(idx.arr, entry[T]{
 		Vector: vx,
 		Value:  item,
 	})
