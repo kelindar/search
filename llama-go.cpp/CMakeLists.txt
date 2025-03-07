@@ -13,7 +13,7 @@ add_library(llama_go SHARED ${SOURCES})
 target_include_directories(llama_go PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/..                            # To include llama-go.h
     ${llama.cpp_SOURCE_DIR}/include                            # Adjust based on llama.cpp's include path
-    ${llama.cpp_SOURCE_DIR}/common/include                     # Include path for common (arg.h)
+    ${llama.cpp_SOURCE_DIR}/common                     # Include path for common (arg.h)
     # Add other include directories if necessary
 )
 
