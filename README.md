@@ -97,6 +97,29 @@ cmake --build . --config Release
 
 This should generate `libllama_go.so` that statically links everything necessary. You can also install the library by coping it into `/usr/lib`.
 
+### Compile on macOS
+
+Make sure you have Xcode Command Line Tools and CMake installed:
+
+```bash
+xcode-select --install
+brew install cmake
+```
+
+Then compile the library:
+
+```bash
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --config Release
+```
+
+This generates `libllama_go.dylib` in `build/lib`. If you run the Go tests or example from the repository root, point the dynamic loader to that directory:
+
+```bash
+DYLD_LIBRARY_PATH="$(pwd)/build/lib" go test ./...
+```
+
 ### Compile on Windows
 
 Make sure you have a C/C++ compiler and CMake installed. For Windows, a simple option is to use [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/) (make sure CLI tools are included) and [CMake](https://cmake.org/download/).
