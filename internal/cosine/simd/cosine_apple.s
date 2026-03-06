@@ -6,8 +6,6 @@ TEXT ·f32_cosine_distance(SB), $0-32
 	MOVD y+8(FP), R1
 	MOVD result+16(FP), R2
 	MOVD size+24(FP), R3
-	WORD $0xa9bf7bfd       // stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	WORD $0x910003fd       // mov	x29, sp
 	WORD $0x2f00e400       // movi	d0, #0000000000000000
 	WORD $0xb4000103       // cbz	x3, LBB0_3
 	WORD $0xf100407f       // cmp	x3, #16
@@ -24,7 +22,7 @@ BB0_3:
 	WORD $0x1e21c042 // fsqrt	s2, s2
 	WORD $0x1e202048 // fcmp	s2, #0.0
 	WORD $0x540008a0 // b.eq	LBB0_10
-	WORD $0x14000047 // b	LBB0_11
+	WORD $0x14000046 // b	LBB0_11
 
 BB0_4:
 	WORD $0x6f00e401 // movi.2d	v1, #0000000000000000
@@ -101,18 +99,16 @@ BB0_9:
 	WORD $0x1e22c021 // fcvt	d1, s1
 	WORD $0x1e21c042 // fsqrt	s2, s2
 	WORD $0x1e202048 // fcmp	s2, #0.0
-	WORD $0x54000081 // b.ne	LBB0_11
+	WORD $0x54000061 // b.ne	LBB0_11
 
 BB0_10:
 	WORD $0xfd000040 // str	d0, [x2]
-	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	WORD $0xd65f03c0 // ret
 
 BB0_11:
 	WORD $0x1e22c040 // fcvt	d0, s2
 	WORD $0x1e601820 // fdiv	d0, d1, d0
 	WORD $0xfd000040 // str	d0, [x2]
-	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	WORD $0xd65f03c0 // ret
 
 TEXT ·f32_dot_product(SB), $0-32
@@ -120,19 +116,16 @@ TEXT ·f32_dot_product(SB), $0-32
 	MOVD y+8(FP), R1
 	MOVD result+16(FP), R2
 	MOVD size+24(FP), R3
-	WORD $0xa9bf7bfd       // stp	x29, x30, [sp, #-16]!           ; 16-byte Folded Spill
-	WORD $0x910003fd       // mov	x29, sp
 	WORD $0xb40000c3       // cbz	x3, LBB1_3
 	WORD $0xf100207f       // cmp	x3, #8
-	WORD $0x54000102       // b.hs	LBB1_4
+	WORD $0x540000e2       // b.hs	LBB1_4
 	WORD $0xd2800008       // mov	x8, #0
 	WORD $0x2f00e400       // movi	d0, #0000000000000000
-	WORD $0x14000018       // b	LBB1_7
+	WORD $0x14000017       // b	LBB1_7
 
 BB1_3:
 	WORD $0x2f00e400 // movi	d0, #0000000000000000
 	WORD $0xfd000040 // str	d0, [x2]
-	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	WORD $0xd65f03c0 // ret
 
 BB1_4:
@@ -174,5 +167,4 @@ BB1_8:
 BB1_9:
 	WORD $0x1e22c000 // fcvt	d0, s0
 	WORD $0xfd000040 // str	d0, [x2]
-	WORD $0xa8c17bfd // ldp	x29, x30, [sp], #16             ; 16-byte Folded Reload
 	WORD $0xd65f03c0 // ret
