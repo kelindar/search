@@ -20,7 +20,7 @@ func BenchmarkSIMD(b *testing.B) {
 
 	b.Run("cos-std", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			genericCosine(x, y)
 		}
 	})
@@ -28,14 +28,14 @@ func BenchmarkSIMD(b *testing.B) {
 	b.Run("cos-acc", func(b *testing.B) {
 		var out float64
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			Cosine(&out, x, y)
 		}
 	})
 
 	b.Run("dot-std", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			genericDotProduct(x, y)
 		}
 	})
@@ -43,7 +43,7 @@ func BenchmarkSIMD(b *testing.B) {
 	b.Run("dot-acc", func(b *testing.B) {
 		var out float64
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			DotProduct(&out, x, y)
 		}
 	})
@@ -71,6 +71,29 @@ func TestDotProduct(t *testing.T) {
 		expect := genericDotProduct(x, y)
 		assert.InDelta(t, expect, actual, 1e-4, "expected %v, got %v", expect, actual)
 	}
+}
+
+func TestFallback(t *testing.T) {
+	detected := hardware
+	t.Cleanup(func() { hardware = detected })
+	hardware = false
+	var result float64
+	Cosine(&result, []float32{3, 4}, []float32{-3, -4})
+	assert.InDelta(t, -1, result, 1e-6)
+	DotProduct(&result, []float32{3, 4}, []float32{-3, -4})
+	assert.Equal(t, float64(-25), result)
+	Cosine(&result, []float32{0, 0}, []float32{3, 4})
+	assert.Zero(t, result)
+}
+
+func TestDimensions(t *testing.T) {
+	var result float64
+	assert.PanicsWithValue(t, "vectors must be of same length", func() {
+		Cosine(&result, []float32{1}, []float32{1, 2})
+	})
+	assert.PanicsWithValue(t, "vectors must be of same length", func() {
+		DotProduct(&result, []float32{1}, []float32{1, 2})
+	})
 }
 
 func randVec() []float32 {

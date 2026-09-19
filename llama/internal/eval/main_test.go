@@ -1,16 +1,20 @@
+//go:build integration
+
 package main
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestEmbeddingsQuality tests the embedding quality using the SICK dataset
 func TestEmbeddingsQuality(t *testing.T) {
 	data, err := loadSICK()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Create slices to store predicted and human scores
 	embedScores := make([]float64, 0, len(data))
@@ -22,11 +26,11 @@ func TestEmbeddingsQuality(t *testing.T) {
 
 	// Embed the sentences and calculate similarities
 	for _, v := range data {
-		embeddingA, err := m.EmbedText(v.Pair[0])
-		assert.NoError(t, err)
+		embeddingA, err := m.EmbedText(context.Background(), v.Pair[0])
+		require.NoError(t, err)
 
-		embeddingB, err := m.EmbedText(v.Pair[1])
-		assert.NoError(t, err)
+		embeddingB, err := m.EmbedText(context.Background(), v.Pair[1])
+		require.NoError(t, err)
 
 		// Calculate similarity (you can replace CosineSimilarity with your own method)
 		similarity := cosineScaled(embeddingA, embeddingB, 3.85, 0.5)
@@ -53,4 +57,19 @@ func TestEmbeddingsQuality(t *testing.T) {
 
 	// Assert that the correlation meets your desired threshold
 	assert.True(t, spearman > 0.7, "Correlation is below acceptable threshold")
+}
+
+func TestMetrics(t *testing.T) {
+	x := []float64{1, 2, 3}
+	assert.Equal(t, []int{1, 2, 0}, argsort([]float64{30, 10, 20}))
+	assert.Equal(t, []float64{3, 1, 2}, rank([]float64{30, 10, 20}))
+	assert.Equal(t, float64(1), spearman(x, []float64{10, 20, 30}))
+	assert.Equal(t, float64(-1), spearman(x, []float64{30, 20, 10}))
+	assert.InDelta(t, 1, pearson(x, []float64{10, 20, 30}), 1e-6)
+	assert.InDelta(t, -1, pearson(x, []float64{30, 20, 10}), 1e-6)
+	assert.Zero(t, pearson(x, []float64{2, 2, 2}))
+	assert.Zero(t, cosine([]float32{0, 0}, []float32{1, 2}))
+	assert.InDelta(t, -1, cosine([]float32{3, 4}, []float32{-3, -4}), 1e-6)
+	assert.InDelta(t, 3, cosineScaled([]float32{1, 0}, []float32{0, 1}, 4, 0), 1e-6)
+	assert.InDelta(t, 2, mse(x, []float64{2, 4, 2}), 1e-6)
 }

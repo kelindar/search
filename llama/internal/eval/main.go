@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/csv"
 	"fmt"
 	"log"
@@ -11,15 +12,15 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/kelindar/search"
+	"github.com/kelindar/search/llama"
 )
 
-func loadModel() *search.Vectorizer {
-	model := "../../dist/MiniLM-L6-v2.Q8_0.gguf"
+func loadModel() *llama.Vectorizer {
+	model := "../../../dist/MiniLM-L6-v2.Q8_0.gguf"
 	fmt.Printf("Loading model: %s\n", model)
 
 	mod, _ := filepath.Abs(model)
-	ctx, err := search.NewVectorizer(mod, 0)
+	ctx, err := llama.New(mod, 0)
 	if err != nil {
 		panic(err)
 	}
@@ -41,8 +42,8 @@ func main() {
 	// Embed the sentences and calculate similarities
 	start := time.Now()
 	for _, v := range data {
-		embeddingA, _ := m.EmbedText(v.Pair[0])
-		embeddingB, _ := m.EmbedText(v.Pair[1])
+		embeddingA, _ := m.EmbedText(context.Background(), v.Pair[0])
+		embeddingB, _ := m.EmbedText(context.Background(), v.Pair[1])
 
 		// Calculate similarity (you can replace CosineSimilarity with your own method)
 		similarity := cosineScaled(embeddingA, embeddingB, 3.85, 0.5)
@@ -83,7 +84,7 @@ type entry struct {
 
 // loadSICK parses the SICK CSV dataset and returns sentence pairs with their relatedness scores
 func loadSICK() ([]entry, error) {
-	file, err := os.Open("../../dist/dataset.txt")
+	file, err := os.Open("../../../dist/dataset.txt")
 	if err != nil {
 		return nil, err
 	}

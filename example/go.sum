@@ -1,3 +1,5 @@
+github.com/ebitengine/purego v0.11.0 h1:jhp/D+Nyv7UUW8HAcmcjt2N2rYrYi9m3SL21k0Ua/NI=
+github.com/ebitengine/purego v0.11.0/go.mod h1:DCHPP08djqhNSoTfImcnHYQRZmd0qhakvrozqaEYhGQ=
 github.com/kelindar/iostream v1.4.0 h1:ELKlinnM/K3GbRp9pYhWuZOyBxMMlYAfsOP+gauvZaY=
 github.com/kelindar/iostream v1.4.0/go.mod h1:MkjMuVb6zGdPQVdwLnFRO0xOTOdDvBWTztFmjRDQkXk=
 github.com/klauspost/cpuid/v2 v2.4.0 h1:S6Hrbc7+ywsr0r+RLapfGBHfyefhCTwEh3A0tV913Dw=

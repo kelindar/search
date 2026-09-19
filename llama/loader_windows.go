@@ -1,7 +1,7 @@
 //go:build windows
 // +build windows
 
-package search
+package llama
 
 import "syscall"
 

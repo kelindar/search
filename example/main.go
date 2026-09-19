@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"math"
 	"os"
@@ -9,10 +10,11 @@ import (
 	"time"
 
 	"github.com/kelindar/search"
+	"github.com/kelindar/search/llama"
 )
 
 func main() {
-	m, err := search.NewVectorizer("../dist/MiniLM-L6-v2.Q8_0.gguf", 0)
+	m, err := llama.New("../dist/MiniLM-L6-v2.Q8_0.gguf", 0)
 	if err != nil {
 		panic(err)
 	}
@@ -34,7 +36,11 @@ func main() {
 		default:
 
 			// Embed the query
-			embedding, _ := m.EmbedText(query)
+			embedding, err := m.EmbedText(context.Background(), query)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				continue
+			}
 
 			// Perform the search query
 			start := time.Now()
@@ -63,39 +69,3 @@ func loadIndex(path string) *search.Index[string] {
 	}
 	return index
 }
-
-/*
-func main() {
-	m, err := search.New("../dist/MiniLM-L6-v2.Q8_0.gguf", 0)
-	if err != nil {
-		panic(err)
-	}
-
-	defer m.Close()
-
-	prompts := []string{
-		"A boy is studying a calendar",
-		"A boy is staring at a calendar",
-		"A man is making a sketch",
-		"A man is drawing",
-	}
-
-	embeddings := make([][]float32, len(prompts))
-	for i, prompt := range prompts {
-		embeddings[i], err = m.EmbedText(prompt)
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	// Compute pairwise cosine similarities and print them out
-	for i := 0; i < len(embeddings); i++ {
-		for j := i + 1; j < len(embeddings); j++ {
-			cos := search.Cosine(embeddings[i], embeddings[j])
-			fmt.Printf("\n * Similarity = %.2f\n", cos)
-			fmt.Printf("   1: %s\n", prompts[i])
-			fmt.Printf("   2: %s\n", prompts[j])
-		}
-	}
-}
-*/

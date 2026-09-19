@@ -1,6 +1,4 @@
-#include "arg.h"
 #include "common.h"
-#include "log.h"
 #include "llama.h"
 #include "ggml.h"
 #include <vector>
@@ -8,7 +6,6 @@
 typedef struct llama_model* model_t;
 typedef struct llama_context* context_t;
 
-std::string embd_sep = "\n";
 int32_t embd_normalize = 2; // normalization (-1=none, 0=max absolute int16, 1=taxicab, 2=euclidean, >2=p-norm)
 
 static void batch_add_seq(llama_batch & batch, const std::vector<int32_t> & tokens, llama_seq_id seq_id) {
@@ -18,47 +15,33 @@ static void batch_add_seq(llama_batch & batch, const std::vector<int32_t> & toke
     }
 }
 
-static int batch_decode(llama_context * ctx, llama_batch & batch, float * output, int n_seq, int n_embd, int embd_norm) {
+static int batch_decode(llama_context * ctx, llama_batch & batch, float * output, int n_embd, int embd_norm) {
     const enum llama_pooling_type pooling_type = llama_pooling_type(ctx);
     const struct llama_model * model = llama_get_model(ctx);
 
     // Clear previous KV cache values (irrelevant for embeddings)
-    llama_kv_cache_clear(ctx);
+    llama_memory_clear(llama_get_memory(ctx), true);
 
     // Run model
     if (llama_model_has_encoder(model) && !llama_model_has_decoder(model)) {
-        if (llama_encode(ctx, batch) < 0) { // Encoder-only model
+        if (llama_encode(ctx, batch) != 0) { // Encoder-only model
             return -1;
         }
     } else if (!llama_model_has_encoder(model) && llama_model_has_decoder(model)) {
-        if (llama_decode(ctx, batch) < 0) { // Decoder-only model
+        if (llama_decode(ctx, batch) != 0) { // Decoder-only model
             return -1;
         }
     }
 
-    for (int i = 0; i < batch.n_tokens; i++) {
-        if (!batch.logits[i]) {
-            continue;
-        }
-
-        const float * embd = nullptr;
-        int embd_pos = 0;
-
-        if (pooling_type == LLAMA_POOLING_TYPE_NONE) {
-            // Get token embeddings
-            embd = llama_get_embeddings_ith(ctx, i);
-            embd_pos = i;
-            GGML_ASSERT(embd != NULL && "Failed to get token embeddings");
-        } else {
-            // Get sequence embeddings (for pooled cases)
-            embd = llama_get_embeddings_seq(ctx, batch.seq_id[i][0]);
-            embd_pos = batch.seq_id[i][0];
-            GGML_ASSERT(embd != NULL && "Failed to get sequence embeddings");
-        }
-
-        float * out = output + embd_pos * n_embd;
-        common_embd_normalize(embd, out, n_embd, embd_norm);
+    // The Go ABI reserves one vector; token-level and ranking outputs do not fit.
+    if (pooling_type == LLAMA_POOLING_TYPE_NONE || pooling_type == LLAMA_POOLING_TYPE_RANK) {
+        return -1;
     }
+    const float * embd = llama_get_embeddings_seq(ctx, 0);
+    if (embd == nullptr) {
+        return -1;
+    }
+    common_embd_normalize(embd, output, n_embd, embd_norm);
     return 0;
 }
 
@@ -114,7 +97,7 @@ extern "C" {
         if (llama_model_has_encoder(model) && llama_model_has_decoder(model)) {
             return -1; // Embeddings not supported for encoder-decoder models
         }
-        return llama_model_n_embd(model);
+        return llama_model_n_embd_out(model);
     }
 
     // Embed the text and return the embeddings
@@ -141,8 +124,8 @@ extern "C" {
         batch_add_seq(batch, inp, 0);
 
         // Decode batch and store embeddings in out_embeddings
-        const int n_embd = llama_model_n_embd(model);
-        if (batch_decode(ctx, batch, out_embeddings, 1, n_embd, embd_normalize) != 0) {
+        const int n_embd = llama_model_n_embd_out(model);
+        if (batch_decode(ctx, batch, out_embeddings, n_embd, embd_normalize) != 0) {
             llama_batch_free(batch);
             return 3; // Decoding failed
         }
