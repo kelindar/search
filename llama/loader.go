@@ -1,7 +1,7 @@
 // Copyright (c) Roman Atachiants and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for details.
 
-package search
+package llama
 
 import (
 	"errors"
@@ -10,13 +10,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/ebitengine/purego"
 )
 
 // libptr is a pointer to the loaded dynamic library.
 var libptr uintptr
-var load_library func(log_level int) uintptr
+var load_library func(log_level int)
 var load_model func(path_model string, n_gpu_layers uint32) uintptr
 var load_context func(model uintptr, ctx_size uint32, embeddings bool) uintptr
 var free_model func(model uintptr)
@@ -24,13 +25,19 @@ var free_context func(ctx uintptr)
 var embed_size func(model uintptr) int32
 var embed_text func(model uintptr, text string, out_embeddings []float32, out_tokens *uint32) int
 
-func init() {
+var initialize = sync.OnceValue(func() (err error) {
+	// purego reports missing symbols as panics. Turn loader failures into errors.
+	defer func() {
+		if failure := recover(); failure != nil {
+			err = fmt.Errorf("initialize llama library: %v", failure)
+		}
+	}()
 	libpath, err := findLlama()
 	if err != nil {
-		panic(err)
+		return err
 	}
 	if libptr, err = load(libpath); err != nil {
-		panic(err)
+		return fmt.Errorf("load llama library: %w", err)
 	}
 
 	// Load the library functions
@@ -44,7 +51,8 @@ func init() {
 
 	// Initialize the library (Log level WARN)
 	load_library(2)
-}
+	return nil
+})
 
 // --------------------------------- Library Lookup ---------------------------------
 

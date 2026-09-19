@@ -3,7 +3,34 @@ on: [push, pull_request]
 env:
   GITHUB_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
   GO111MODULE: "on"
+  GOWORK: "off"
 jobs:
+  core:
+    name: Test without native libraries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.x"
+      - name: Fetch vector fixture only
+        run: git lfs pull --include="dist/dataset.bin" --exclude=""
+      - name: Test every module independently
+        run: |
+          for module in . llama openai example; do
+            (cd "$module" && go test ./...)
+          done
+      - name: Verify core dependency isolation
+        run: |
+          if go list -m all | grep -Eq 'github.com/ebitengine/purego|github.com/kelindar/search/(llama|openai)'; then
+            echo "Core search must not require embedding modules or purego"
+            exit 1
+          fi
+          cd openai
+          if go list -m all | grep -Eq 'github.com/ebitengine/purego|github.com/kelindar/search/llama'; then
+            echo "Cloud embeddings must not require local inference"
+            exit 1
+          fi
   test:
     name: Test with Coverage
     runs-on: ubuntu-latest
@@ -13,7 +40,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
       - name: Checkout out submodules
         run: |
           git submodule update --init --recursive
@@ -22,20 +49,23 @@ jobs:
         run: |
           mkdir -p build
           cd build
-          cmake -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc ..
-          cmake --build . --config Release
+          cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=g++ -DCMAKE_C_COMPILER=gcc ..
+          cmake --build . --config Release --target llama_go --parallel
           sudo cp lib/*.so /usr/lib/
       - name: Set up Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v7
         with:
-          go-version: "1.23"
-      - name: Install Go dependencies
-        run: |
-          go mod download
+          go-version: "1.27.x"
       - name: Run Unit Tests
         run: |
-          go test -tags noasm -race -covermode atomic -coverprofile=profile.cov .
+          echo 'mode: atomic' > profile.cov
+          for module in . llama openai example; do
+            profile=$(mktemp)
+            (cd "$module" && go test -tags integration -race -covermode atomic -coverprofile="$profile" ./...)
+            tail -n +2 "$profile" >> profile.cov
+            rm "$profile"
+          done
       - name: Upload Coverage
-        uses: shogo82148/actions-goveralls@v1
+        uses: shogo82148/actions-goveralls@v1.11.2
         with:
           path-to-profile: profile.cov

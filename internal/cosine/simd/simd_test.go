@@ -20,7 +20,7 @@ func BenchmarkSIMD(b *testing.B) {
 
 	b.Run("cos-std", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			genericCosine(x, y)
 		}
 	})
@@ -28,14 +28,14 @@ func BenchmarkSIMD(b *testing.B) {
 	b.Run("cos-acc", func(b *testing.B) {
 		var out float64
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			Cosine(&out, x, y)
 		}
 	})
 
 	b.Run("dot-std", func(b *testing.B) {
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			genericDotProduct(x, y)
 		}
 	})
@@ -43,7 +43,7 @@ func BenchmarkSIMD(b *testing.B) {
 	b.Run("dot-acc", func(b *testing.B) {
 		var out float64
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			DotProduct(&out, x, y)
 		}
 	})

@@ -26,7 +26,7 @@ target_compile_definitions(llama_go PRIVATE
 # Link against the static llama and common libraries from llama.cpp
 target_link_libraries(llama_go PRIVATE
     llama       # Static llama library
-    common      # Static common library
+    llama-common # Static common library
     # Add other libraries if required
 )
 

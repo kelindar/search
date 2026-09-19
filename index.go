@@ -40,7 +40,9 @@ func (idx *Index[T]) Len() int {
 	return len(idx.arr)
 }
 
-// Add adds a new vector to the search index.
+// Add normalizes vx in place and retains its backing array. Do not modify vx
+// afterward. All indexed and query vectors must be nonzero, finite, and use the
+// same embedding model and dimensions.
 func (idx *Index[T]) Add(vx Vector, item T) {
 	normalize(vx)
 	idx.arr = append(idx.arr, entry[T]{
@@ -49,7 +51,8 @@ func (idx *Index[T]) Add(vx Vector, item T) {
 	})
 }
 
-// Search searches the index for the k-nearest neighbors of the query vector.
+// Search normalizes query in place and returns up to k results in descending
+// cosine similarity order. Higher Relevance means more similar.
 func (idx *Index[T]) Search(query Vector, k int) []Result[T] {
 	if k <= 0 {
 		return nil

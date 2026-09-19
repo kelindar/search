@@ -1,6 +1,9 @@
+//go:build integration
+
 package main
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -22,10 +25,10 @@ func TestEmbeddingsQuality(t *testing.T) {
 
 	// Embed the sentences and calculate similarities
 	for _, v := range data {
-		embeddingA, err := m.EmbedText(v.Pair[0])
+		embeddingA, err := m.EmbedText(context.Background(), v.Pair[0])
 		assert.NoError(t, err)
 
-		embeddingB, err := m.EmbedText(v.Pair[1])
+		embeddingB, err := m.EmbedText(context.Background(), v.Pair[1])
 		assert.NoError(t, err)
 
 		// Calculate similarity (you can replace CosineSimilarity with your own method)
