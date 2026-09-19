@@ -73,6 +73,29 @@ func TestDotProduct(t *testing.T) {
 	}
 }
 
+func TestFallback(t *testing.T) {
+	detected := hardware
+	t.Cleanup(func() { hardware = detected })
+	hardware = false
+	var result float64
+	Cosine(&result, []float32{3, 4}, []float32{-3, -4})
+	assert.InDelta(t, -1, result, 1e-6)
+	DotProduct(&result, []float32{3, 4}, []float32{-3, -4})
+	assert.Equal(t, float64(-25), result)
+	Cosine(&result, []float32{0, 0}, []float32{3, 4})
+	assert.Zero(t, result)
+}
+
+func TestDimensions(t *testing.T) {
+	var result float64
+	assert.PanicsWithValue(t, "vectors must be of same length", func() {
+		Cosine(&result, []float32{1}, []float32{1, 2})
+	})
+	assert.PanicsWithValue(t, "vectors must be of same length", func() {
+		DotProduct(&result, []float32{1}, []float32{1, 2})
+	})
+}
+
 func randVec() []float32 {
 	v := make([]float32, 384)
 	for i := range v {

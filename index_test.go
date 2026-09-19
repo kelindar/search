@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 /*
@@ -39,6 +40,30 @@ func TestIndex(t *testing.T) {
 		assert.Equal(t, 5, len(results))
 		assert.InDelta(t, 1, results[0].Relevance, 1e-4)
 	}
+}
+
+func TestSearchLimits(t *testing.T) {
+	index := NewIndex[string]()
+	assert.Empty(t, index.Search(Vector{1, 0}, 3))
+	vector := Vector{3, 4}
+	index.Add(vector, "diagonal")
+	assert.InDeltaSlice(t, Vector{0.6, 0.8}, vector, 1e-6)
+	index.Add(Vector{-1, 0}, "opposite")
+	index.Add(Vector{1, 0}, "aligned")
+	for _, k := range []int{-1, 0} {
+		query := Vector{5, 0}
+		assert.Nil(t, index.Search(query, k))
+		assert.Equal(t, Vector{5, 0}, query)
+	}
+	query := Vector{5, 0}
+	results := index.Search(query, 10)
+	assert.Equal(t, Vector{1, 0}, query)
+	require.Len(t, results, 3)
+	assert.Equal(t, "aligned", results[0].Value)
+	assert.Equal(t, "diagonal", results[1].Value)
+	assert.Equal(t, "opposite", results[2].Value)
+	assert.Equal(t, float64(-1), results[2].Relevance)
+	assert.Equal(t, results[:2], index.Search(Vector{1, 0}, 2))
 }
 
 func TestCodec_String(t *testing.T) {
