@@ -31,6 +31,11 @@ func TestNew(t *testing.T) {
 		{name: "client", apiKey: "key", model: "model", options: []Option{HTTPClient(nil)}},
 		{name: "option", apiKey: "key", model: "model", options: []Option{nil}},
 		{name: "newline", apiKey: "key\nvalue", model: "model"},
+		{name: "relative url", apiKey: "key", model: "model", options: []Option{BaseURL("example.test/v1")}},
+		{name: "scheme", apiKey: "key", model: "model", options: []Option{BaseURL("ftp://example.test/v1")}},
+		{name: "user", apiKey: "key", model: "model", options: []Option{BaseURL("https://user@example.test/v1")}},
+		{name: "query", apiKey: "key", model: "model", options: []Option{BaseURL("https://example.test/v1?x=1")}},
+		{name: "fragment", apiKey: "key", model: "model", options: []Option{BaseURL("https://example.test/v1#part")}},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -148,6 +153,17 @@ func TestEmpty(t *testing.T) {
 	assert.Equal(t, 0, transport.count)
 }
 
+func TestUninitialized(t *testing.T) {
+	var nilClient *Client
+	_, err := nilClient.EmbedText(context.Background(), "one")
+	assert.ErrorContains(t, err, "client is not initialized")
+
+	client, err := New("key", "model")
+	require.NoError(t, err)
+	_, err = client.EmbedText(nil, "one")
+	assert.ErrorContains(t, err, "context is nil")
+}
+
 func TestCancel(t *testing.T) {
 	started := make(chan struct{})
 	finished := make(chan struct{})
@@ -215,7 +231,9 @@ func TestMalformed(t *testing.T) {
 		{name: "dimension", body: `{"data":[{"index":0,"embedding":[1,2]}]}`, dimensions: 3},
 		{name: "duplicate", body: `{"data":[{"index":0,"embedding":[1]},{"index":0,"embedding":[2]}]}`, batch: true},
 		{name: "inconsistent", body: `{"data":[{"index":0,"embedding":[1,2]},{"index":1,"embedding":[3]}]}`, batch: true},
+		{name: "decode", body: `{`},
 		{name: "trailing", body: `{"data":[{"index":0,"embedding":[1]}]} {}`, batch: false},
+		{name: "trailing data", body: `{"data":[{"index":0,"embedding":[1]}]} trailing`, batch: false},
 	}
 	for _, test := range cases {
 		t.Run(test.name, func(t *testing.T) {
@@ -239,6 +257,19 @@ func TestMalformed(t *testing.T) {
 	}
 }
 
+func TestResponseReadError(t *testing.T) {
+	client, err := New("key", "model", HTTPClient(&http.Client{
+		Transport: &responseTransport{response: &http.Response{
+			StatusCode: http.StatusBadGateway,
+			Body:       &readErrorBody{},
+		}},
+	}))
+	require.NoError(t, err)
+
+	_, err = client.EmbedText(context.Background(), "one")
+	assert.ErrorContains(t, err, "read response")
+}
+
 type countTransport struct {
 	count int
 }
@@ -256,5 +287,20 @@ func (t *errorTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	return nil, t.err
 }
 
+type responseTransport struct {
+	response *http.Response
+}
+
+func (t *responseTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return t.response, nil
+}
+
+type readErrorBody struct{}
+
+func (*readErrorBody) Read([]byte) (int, error) { return 0, errors.New("read failed") }
+
+func (*readErrorBody) Close() error { return nil }
+
 var _ http.RoundTripper = (*countTransport)(nil)
 var _ http.RoundTripper = (*errorTransport)(nil)
+var _ http.RoundTripper = (*responseTransport)(nil)
